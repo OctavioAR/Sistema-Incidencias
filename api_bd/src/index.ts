@@ -360,6 +360,31 @@ app.put('/usuarios/:id/estado', requireJefeTaller, async (req, res) => {
   }
 });
 
+app.delete('/usuarios/:id/fisica', requireJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const usuarioActualId = req.headers['usuario-id'];
+    if (usuarioActualId && parseInt(usuarioActualId as string) === parseInt(id)) {
+      res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
+      return;
+    }
+
+    const usuarios = await query('SELECT * FROM Usuario WHERE idUsuario = ?', [id]);
+    if (usuarios.length === 0) {
+      res.status(404).json({ error: 'Usuario no encontrado' });
+      return;
+    }
+
+    await execute('DELETE FROM Usuario WHERE idUsuario = ?', [id]);
+    
+    res.json({ message: 'Usuario eliminado permanentemente de la base de datos' });
+  } catch (error) {
+    console.error('Error al eliminar usuario:', error);
+    res.status(500).json({ error: 'Error al eliminar usuario permanentemente' });
+  }
+});
+
 // Obtener todas las incidencias
 app.get('/incidencias', async (_req, res) => {
     try {

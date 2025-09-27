@@ -91,6 +91,12 @@
                 {{ usuario.activo ? '⏸️' : '▶️' }}
               </button>
               <button @click="cambiarPassword(usuario)" class="btn-info" title="Cambiar contraseña">🔑</button>
+              <button @click="eliminarUsuarioPermanente(usuario)" 
+                      class="btn-delete" 
+                      title="Eliminar permanentemente"
+                      :disabled="esUsuarioActual(usuario)">
+                🗑️
+              </button>
             </td>
           </tr>
         </tbody>
@@ -275,6 +281,52 @@ const handlePasswordCambiada = () => {
   alert('Contraseña cambiada correctamente');
 };
 
+const esUsuarioActual = (usuario: UsuarioCompleto) => {
+  const usuarioStr = localStorage.getItem('usuario');
+  if (!usuarioStr) return false;
+  const usuarioActual = JSON.parse(usuarioStr);
+  return usuarioActual.idUsuario === usuario.idUsuario;
+};
+
+const eliminarUsuarioPermanente = async (usuario: UsuarioCompleto) => {
+  if (!usuario.idUsuario) return;
+  
+  if (esUsuarioActual(usuario)) {
+    alert('No puedes eliminarte a ti mismo');
+    return;
+  }
+
+  const confirmacion1 = confirm(
+    `¿ESTÁS ABSOLUTAMENTE SEGURO de que quieres ELIMINAR PERMANENTEMENTE a este usuario?\n\n` +
+    `. ESTA ACCIÓN NO SE PUEDE DESHACER\n` +
+    `. Se borrarán TODOS los datos del usuario de la base de datos\n` +
+    `. El usuario no podrá recuperarse\n\n` +
+    `Usuario: ${usuario.nombre} ${usuario.apellidoPat}\n` +
+    `Email: ${usuario.email}\n` +
+    `Tipo: ${usuario.tipo_usuario_nombre}\n\n` +
+    `¿Continuar con la eliminación permanente?`
+  );
+  
+  if (!confirmacion1) return;
+
+  try {
+    await usuariosService.eliminarUsuarioPermanente(usuario.idUsuario);
+    await cargarDatos();
+    alert('Usuario eliminado permanentemente de la base de datos');
+  } catch (error: any) {
+    if (
+      error?.response?.data?.error?.includes('foreign key constraint fails') ||
+      error?.code === 'ER_ROW_IS_REFERENCED_2' ||
+      error?.errno === 1451
+    ) {
+      alert('No se puede eliminar este usuario porque tiene incidencias asociadas. Elimina o reasigna esas incidencias antes de eliminar el usuario.');
+      return;
+    }
+    const mensajeError = error.response?.data?.error || 'Error al eliminar usuario';
+    alert('Error al eliminar: ' + mensajeError);
+  }
+};
+
 onMounted(() => {
   cargarDatos();
 });
@@ -338,7 +390,6 @@ onMounted(() => {
   min-width: 250px;
 }
 
-/* Estilos de la tabla */
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -370,7 +421,6 @@ onMounted(() => {
   background: #fef2f2;
 }
 
-/* Badges para tipos de usuario */
 .badge {
   padding: 4px 8px;
   border-radius: 12px;
@@ -398,7 +448,6 @@ onMounted(() => {
   color: #6b7280;
 }
 
-/* Estados */
 .estado.activo {
   color: #15803d;
   font-weight: 500;
@@ -409,7 +458,6 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* Acciones */
 .actions {
   white-space: nowrap;
   text-align: center;
@@ -467,7 +515,55 @@ onMounted(() => {
   color: #6b7280;
 }
 
-/* Responsive */
+.btn-delete {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  margin: 0 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: #b91c1c;
+  transform: scale(1.1);
+}
+
+.btn-delete:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Estilos para los otros botones */
+.btn-edit {
+  background: #f59e0b;
+  color: black;
+}
+
+.btn-warning {
+  background: #fbbf24;
+  color: black;
+}
+
+.btn-success {
+  background: #10b981;
+  color: white;
+}
+
+.btn-info {
+  background: #3b82f6;
+  color: white;
+}
+
+.actions {
+  white-space: nowrap;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
   .header {
     flex-direction: column;

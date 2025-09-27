@@ -504,7 +504,6 @@ onMounted(() => {
   background: #dc2626;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .tabs {
     flex-direction: column;

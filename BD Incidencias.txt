@@ -261,13 +261,11 @@ INSERT IGNORE INTO Departamento (nombre, idEdificio, idAula) VALUES
 ('Ingeniería Bioquímica', 4, 5);
 
 INSERT IGNORE INTO Usuario (nombre, apellidoPat, apellidoMat, email, password, idTipoUsuario, idDepartamento) VALUES 
-('Admin', 'Sistema', '', 'admin@universidad.edu', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1, 3),
-('Juan', 'Pérez', 'Gómez', 'juan.perez@universidad.edu', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 2, 3),
-('María', 'López', 'Hernández', 'maria.lopez@universidad.edu', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 3, 1),
-('Carlos', 'García', 'Martínez', 'carlos.garcia@universidad.edu', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 3, 1),
-('Ana', 'Rodríguez', 'Sánchez', 'ana.rodriguez@universidad.edu', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 4, 1),
-('Pedro', 'Martínez', 'Díaz', 'pedro.martinez@universidad.edu', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 4, 2),
-('Laura', 'González', 'Vázquez', 'laura.gonzalez@universidad.edu', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 4, 3);
+('Admin', 'Sistema', '', 'admin@universidad.edu', '$2a$10$r3AI6a6uQ1VqNjVqKQYfE.FVc7k6S5jJZ8QYH6dW2qL9nV1mR7XaK', 2, 3),
+('Juan', 'Pérez', 'Gómez', 'juan.perez@universidad.edu', '$2a$10$r3AI6a6uQ1VqNjVqKQYfE.FVc7k6S5jJZ8QYH6dW2qL9nV1mR7XaK', 2, 3),
+('María', 'López', 'Hernández', 'maria.lopez@universidad.edu', '$2a$10$r3AI6a6uQ1VqNjVqKQYfE.FVc7k6S5jJZ8QYH6dW2qL9nV1mR7XaK', 3, 1),
+('Carlos', 'García', 'Martínez', 'carlos.garcia@universidad.edu', '$2a$10$r3AI6a6uQ1VqNjVqKQYfE.FVc7k6S5jJZ8QYH6dW2qL9nV1mR7XaK', 3, 1),
+('Ana', 'Rodríguez', 'Sánchez', 'ana.rodriguez@universidad.edu', '$2a$10$r3AI6a6uQ1VqNjVqKQYfE.FVc7k6S5jJZ8QYH6dW2qL9nV1mR7XaK', 4, 1);
 
 INSERT IGNORE INTO Software (nombre, version, fabricante, tipoLicencia, fechaExpiracionLicencia, requiereActivacion) VALUES 
 ('Windows 10', '21H2', 'Microsoft', 'Comercial', '2024-12-31', 1),

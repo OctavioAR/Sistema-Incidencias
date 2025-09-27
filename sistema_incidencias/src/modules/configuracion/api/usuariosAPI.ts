@@ -66,7 +66,10 @@ export const usuariosService = {
   
   // Cambiar estado (activar/desactivar)
   cambiarEstado: (id: number, activo: boolean) =>
-    usuariosAPI.put(`/usuarios/${id}/estado`, { activo })
+    usuariosAPI.put(`/usuarios/${id}/estado`, { activo }),
+
+  eliminarUsuarioPermanente: (id: number) =>
+    usuariosAPI.delete(`/usuarios/${id}/fisica`)
 };
 
 export default usuariosAPI;

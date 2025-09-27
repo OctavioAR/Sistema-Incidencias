@@ -33,7 +33,7 @@
               :key="edificio.idEdificio" 
               :value="edificio.idEdificio"
             >
-              🏢 {{ edificio.codigo }} - {{ edificio.nombre }}
+              {{ edificio.codigo }} - {{ edificio.nombre }}
             </option>
           </select>
         </div>
@@ -42,7 +42,7 @@
           <label>Aulas Disponibles en este Edificio:</label>
           <div class="aulas-list">
             <div v-if="aulasFiltradas.length === 0" class="no-aulas">
-              <p>⚠️ No hay aulas registradas en este edificio</p>
+              <p>No hay aulas registradas en este edificio</p>
               <small>Crea aulas primero en la pestaña "Aulas"</small>
             </div>
             <div v-else class="aulas-grid">
@@ -271,7 +271,7 @@ onMounted(() => {
   padding: 15px;
   max-height: 200px;
   overflow-y: auto;
-  background: #f8f9fa;
+  background: #d8d5d5;
 }
 
 .no-aulas {
@@ -291,6 +291,7 @@ onMounted(() => {
   padding: 8px 12px;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
+  color: black;
   background: white;
   cursor: pointer;
   transition: all 0.2s;
@@ -320,5 +321,12 @@ onMounted(() => {
   padding: 2px 6px;
   border-radius: 3px;
   margin: 0 2px;
+}
+
+.aula-option,
+.aula-option *,
+.aula-info,
+.aula-info * {
+  color: #111 !important;
 }
 </style>
