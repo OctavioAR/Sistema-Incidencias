@@ -195,9 +195,9 @@ const modalDepartamento = ref({
 
 
 const tabs = [
-  { id: 'edificios', label: '🏢 Edificios' },
-  { id: 'aulas', label: '🚪 Aulas' },
-  { id: 'departamentos', label: '📚 Departamentos' }
+  { id: 'edificios', label: 'Edificios' },
+  { id: 'aulas', label: 'Aulas' },
+  { id: 'departamentos', label: 'Departamentos' }
 ];
 
 

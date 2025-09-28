@@ -2,7 +2,7 @@
   <div v-if="mostrar && usuarioValido" class="modal-overlay" @click.self="cerrar">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>🔑 Cambiar Contraseña</h3>
+        <h3>Cambiar Contraseña</h3>
         <button @click="cerrar" class="btn-cerrar">×</button>
       </div>
       

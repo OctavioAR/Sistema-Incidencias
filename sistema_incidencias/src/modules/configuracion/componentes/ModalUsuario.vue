@@ -2,7 +2,7 @@
   <div v-if="mostrar" class="modal-overlay" @click.self="cerrar">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>{{ esEdicion ? '✏️ Editar Usuario' : '👤 Nuevo Usuario' }}</h3>
+        <h3>{{ esEdicion ? 'Editar Usuario' : 'Nuevo Usuario' }}</h3>
         <button @click="cerrar" class="btn-cerrar">×</button>
       </div>
       

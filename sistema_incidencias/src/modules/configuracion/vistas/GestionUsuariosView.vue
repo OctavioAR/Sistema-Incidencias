@@ -2,9 +2,6 @@
   <div class="gestion-usuarios">
     <div class="header">
       <h1>Gestión de Usuarios</h1>
-      <button v-if="esJefeTaller" @click="mostrarModalUsuario" class="btn-primary">
-        ➕ Nuevo Usuario
-      </button>
     </div>
     
     <div v-if="esJefeTaller" class="permisos-info">
@@ -43,6 +40,10 @@
           class="busqueda-input"
         >
       </div>
+
+      <button v-if="esJefeTaller" @click="mostrarModalUsuario" class="btn-primary btn-nuevo-usuario">
+        ➕ Nuevo Usuario
+      </button>
     </div>
 
     <!-- Tabla de usuarios -->
@@ -496,6 +497,23 @@ onMounted(() => {
   color: #065f46;
 }
 
+.btn-primary{
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-nuevo-usuario {
+  align-self: flex-end;
+  margin-left: auto;
+  margin-bottom: 8px;
+}
+
 .btn-success:hover {
   background: #a7f3d0;
 }
@@ -538,7 +556,6 @@ onMounted(() => {
   opacity: 0.5;
 }
 
-/* Estilos para los otros botones */
 .btn-edit {
   background: #f59e0b;
   color: black;

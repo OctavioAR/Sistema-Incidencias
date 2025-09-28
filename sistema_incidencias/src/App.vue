@@ -23,7 +23,11 @@
         Dashboard Maestro
       </router-link>
          
-      <router-link to="/configuracion" style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
+      <!-- USAR COMPUTED PROPERTY -->
+      <router-link 
+        v-if="mostrarConfiguracion" 
+        to="/configuracion" 
+        style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
         Configuración
       </router-link>
       
@@ -54,6 +58,13 @@ const route = useRoute();
 const router = useRouter();
 const usuario = ref<any>(null);
 const usuarioCargado = ref(false); 
+
+// Computed property para controlar quién ve configuración
+const mostrarConfiguracion = computed(() => {
+  const tipoUsuario = usuario.value?.tipo_usuario_nombre;
+  // Solo Jefe de Taller y Técnicos pueden ver configuración
+  return tipoUsuario === 'Jefe de Taller' || tipoUsuario === 'Técnico';
+});
 
 const cargarUsuario = () => {
   const usuarioGuardado = localStorage.getItem('usuario');
