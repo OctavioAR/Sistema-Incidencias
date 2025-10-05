@@ -91,6 +91,14 @@
             </td>
             <td>{{ equipo.responsable_nombre || 'No asignado' }}</td>
             <td v-if="esJefeTaller" class="actions" @click.stop>
+              <button 
+                @click="instalarSoftware(equipo)" 
+                class="btn-info" 
+                :class="{ disabled: !puedeTenerSoftware(equipo) }"
+                :disabled="!puedeTenerSoftware(equipo)"
+                :title="puedeTenerSoftware(equipo) ? 'Instalar Software' : 'Este tipo de equipo no puede tener software instalado'">
+                💾
+              </button>
               <button @click="editarEquipo(equipo)" class="btn-edit" title="Editar">✏️</button>
               <button @click="eliminarEquipo(equipo)" class="btn-delete" title="Eliminar">🗑️</button>
             </td>
@@ -106,7 +114,15 @@
       :departamentos="departamentos"
       :aulas="aulas"
       :usuarios="usuarios"
+      :edificios="edificios" 
       @cerrar="modalEquipo.mostrar = false"
+      @guardado="handleGuardado"
+    />
+
+    <ModalInstalarSoftware 
+      :mostrar="modalInstalarSoftware.mostrar"
+      :equipo="modalInstalarSoftware.equipo"
+      @cerrar="modalInstalarSoftware.mostrar = false"
       @guardado="handleGuardado"
     />
 
@@ -245,14 +261,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { equiposService, type Equipo, type EquipoSoftware } from '../api/equiposAPI';
-import { ubicacionesService, type Departamento, type Aula } from '../api/ubicacionesAPI';
+import { ubicacionesService, type Departamento, type Aula, type Edificio } from '../api/ubicacionesAPI';
 import { usuariosService, type UsuarioCompleto } from '../api/usuariosAPI';
 import ModalEquipo from '../componentes/ModalEquipo.vue';
+import ModalInstalarSoftware from '../componentes/ModalInstalarSoftware.vue';
 
 const cargando = ref(false);
 const equipos = ref<Equipo[]>([]);
 const departamentos = ref<Departamento[]>([]);
 const aulas = ref<Aula[]>([]);
+const edificios = ref<Edificio[]>([]); 
 const usuarios = ref<UsuarioCompleto[]>([]);
 const softwareEquipo = ref<EquipoSoftware[]>([]);
 
@@ -269,6 +287,22 @@ const modalDetalles = ref({
   mostrar: false,
   equipo: null as Equipo | null
 });
+
+const puedeTenerSoftware = (equipo: Equipo): boolean => {
+  return equipo.tipo_equipo_nombre === 'Computadora';
+};
+
+const modalInstalarSoftware = ref({
+  mostrar: false,
+  equipo: null as Equipo | null
+});
+
+const instalarSoftware = (equipo: Equipo) => {
+  modalInstalarSoftware.value = {
+    mostrar: true,
+    equipo: equipo
+  };
+};
 
 const tiposEquipo = [
   { idTipoEquipo: 1, nombre: 'Computadora' },
@@ -324,9 +358,9 @@ const getBadgeClass = (tipo: string | undefined) => {
 
 const getEstadoTexto = (estado: string | undefined) => {
   switch (estado) {
-    case 'activo': return '✅ Activo';
+    case 'activo': return 'Activo';
     case 'mantenimiento': return 'Mantenimiento';
-    case 'baja': return '❌ De baja';
+    case 'baja': return 'De baja';
     case 'obsoleto': return 'Obsoleto';
     case 'en_stock': return 'En stock';
     default: return estado;
@@ -345,17 +379,19 @@ const esGarantiaExpirada = (fechaExpiracion: string | undefined) => {
 const cargarDatos = async () => {
   cargando.value = true;
   try {
-    const [resEquipos, resDepartamentos, resAulas, resUsuarios] = await Promise.all([
+    const [resEquipos, resDepartamentos, resAulas, resUsuarios, resEdificios] = await Promise.all([
       equiposService.obtenerEquipos(),
       ubicacionesService.obtenerDepartamentos(),
       ubicacionesService.obtenerAulas(),
-      usuariosService.obtenerUsuarios()
+      usuariosService.obtenerUsuarios(),
+      ubicacionesService.obtenerEdificios() // Agregar esta línea
     ]);
     
     equipos.value = resEquipos.data;
     departamentos.value = resDepartamentos.data;
     aulas.value = resAulas.data;
     usuarios.value = resUsuarios.data;
+    edificios.value = resEdificios.data; // Agregar esta línea
   } catch (error) {
     console.error('Error al cargar datos:', error);
   } finally {
@@ -374,7 +410,7 @@ const cargarSoftwareEquipo = async (idEquipo: number) => {
 };
 
 const aplicarFiltros = () => {
- 
+  // Los filtros se aplican automáticamente mediante computed properties
 };
 
 const mostrarModalEquipo = () => {
@@ -417,7 +453,7 @@ const verDetallesEquipo = async (equipo: Equipo) => {
     equipo: equipo
   };
   
- 
+  // Cargar software instalado cuando se muestran los detalles
   if (equipo.idEquipo) {
     await cargarSoftwareEquipo(equipo.idEquipo);
   }
@@ -425,7 +461,7 @@ const verDetallesEquipo = async (equipo: Equipo) => {
 
 const cerrarDetalles = () => {
   modalDetalles.value.mostrar = false;
-  softwareEquipo.value = [];
+  softwareEquipo.value = []; // Limpiar software al cerrar
 };
 
 const editarEquipoDesdeDetalles = () => {
@@ -612,7 +648,29 @@ onMounted(() => {
   text-align: center;
 }
 
-.btn-edit, .btn-delete {
+.btn-info{
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  margin: 0 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;  
+}
+
+.btn-info:hover:not(.disabled) {
+  background: #2563eb;
+}
+
+.btn-info.disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn-edit, .btn-delete{
   border: none;
   padding: 6px 10px;
   margin: 0 2px;
@@ -629,6 +687,10 @@ onMounted(() => {
 
 .btn-edit:hover {
   background: #d97706;
+}
+
+.btn-info{
+  background: #af96e7;
 }
 
 .btn-delete {

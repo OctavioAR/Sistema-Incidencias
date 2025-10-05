@@ -377,6 +377,43 @@ app.delete('/software/:id', requireJefeTaller, async (req, res) => {
   }
 });
 
+//Obtener equipos que tienen instalado un software
+app.get('/software/:id/equipos', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const equipos = await query(`
+            SELECT 
+                e.idEquipo,
+                e.codigo,
+                e.nombre,
+                e.marca,
+                e.modelo,
+                e.idTipoEquipo,
+                t.nombre as tipo_equipo_nombre,
+                CONCAT(ed.nombre, ' / ', a.nombre) as ubicacion,
+                u.nombre as responsable_nombre,
+                e.estado,
+                es.fechaInstalacion,
+                es.licenciaKey,
+                es.usuarioInstalacion,
+                es.comentarios
+            FROM EquipoSoftware es
+            JOIN Equipo e ON es.idEquipo = e.idEquipo
+            LEFT JOIN TipoEquipo t ON e.idTipoEquipo = t.idTipoEquipo
+            LEFT JOIN Aula a ON e.idAula = a.idAula
+            LEFT JOIN Edificio ed ON a.idEdificio = ed.idEdificio
+            LEFT JOIN Usuario u ON e.idResponsable = u.idUsuario
+            WHERE es.idSoftware = ?
+            ORDER BY e.nombre, es.fechaInstalacion DESC
+        `, [id]);
+        
+        res.json(equipos);
+    } catch (error) {
+        console.error('Error al obtener equipos con software:', error);
+        res.status(500).json({ error: 'Error al obtener equipos con el software instalado' });
+    }
+});
+
 // Obtener software instalado en un equipo
 app.get('/equipos/:id/software', async (req, res) => {
     try {
@@ -887,6 +924,54 @@ app.get('/auth/perfil', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener perfil' });
     }
+});
+//cambiar contraseña
+app.put('/auth/cambiar-password', async (req, res) => {
+  try {
+    const usuarioId = req.headers['usuario-id'];
+    const { passwordActual, nuevaPassword } = req.body;
+    
+    if (!usuarioId) {
+      res.status(401).json({ error: 'Usuario no autenticado' });
+      return;
+    }
+    
+    // Verificar contraseña actual
+    const usuarios = await query(
+      'SELECT password FROM Usuario WHERE idUsuario = ? AND activo = 1',
+      [usuarioId]
+    );
+    
+    if (usuarios.length === 0) {
+      res.status(404).json({ error: 'Usuario no encontrado' });
+      return;
+    }
+    
+    const usuario = usuarios[0];
+    const bcrypt = require('bcrypt');
+    
+    const passwordValido = await bcrypt.compare(passwordActual, usuario.password);
+    
+    if (!passwordValido) {
+      res.status(400).json({ error: 'La contraseña actual es incorrecta' });
+      return;
+    }
+    
+    // Hashear nueva contraseña
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(nuevaPassword, saltRounds);
+    
+    // Actualizar contraseña
+    await execute(
+      'UPDATE Usuario SET password = ? WHERE idUsuario = ?',
+      [hashedPassword, usuarioId]
+    );
+    
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error);
+    res.status(500).json({ error: 'Error al cambiar la contraseña' });
+  }
 });
 
 // Ruta de prueba

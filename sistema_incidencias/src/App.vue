@@ -23,7 +23,6 @@
         Dashboard Maestro
       </router-link>
          
-      <!-- USAR COMPUTED PROPERTY -->
       <router-link 
         v-if="mostrarConfiguracion" 
         to="/configuracion" 
@@ -35,6 +34,14 @@
         <span style="margin-right: 1rem;">
            {{ usuario.nombre }} ({{ usuario.tipo_usuario_nombre }})
         </span>
+
+        <!-- Botón para cambiar contraseña -->
+        <button 
+          @click="mostrarCambiarPassword" 
+          style="margin-right: 1rem; padding: 0.25rem 0.5rem; background: #3b82f6; color: white; border: none; border-radius: 3px; cursor: pointer;"
+          title="Cambiar mi contraseña">
+          Cambiar Contraseña
+        </button>
         
         <button @click="logout" style="padding: 0.25rem 0.5rem; background: #ff4444; color: white; border: none; border-radius: 3px; cursor: pointer;">
           Cerrar Sesión
@@ -47,17 +54,30 @@
     </nav>
     
     <router-view></router-view>
+
+    <!-- Modal para cambiar contraseña -->
+    <ModalCambiarPassword 
+      :mostrar="modalCambiarPassword.mostrar"
+      @cerrar="modalCambiarPassword.mostrar = false"
+      @cambiado="onPasswordCambiada"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import ModalCambiarPassword from './modules/auth/componentes/ModalCambiarPassword.vue'; // Ajusta la ruta según tu estructura
 
 const route = useRoute();
 const router = useRouter();
 const usuario = ref<any>(null);
-const usuarioCargado = ref(false); 
+const usuarioCargado = ref(false);
+
+// Estado para controlar el modal
+const modalCambiarPassword = ref({
+  mostrar: false
+});
 
 // Computed property para controlar quién ve configuración
 const mostrarConfiguracion = computed(() => {
@@ -86,6 +106,17 @@ const mostrarNavegacion = computed(() => {
   const estaAutenticado = !!localStorage.getItem('authToken');
   return route.path !== '/login' && estaAutenticado;
 });
+
+// Función para mostrar el modal de cambiar contraseña
+const mostrarCambiarPassword = () => {
+  modalCambiarPassword.value.mostrar = true;
+};
+
+// Función que se ejecuta después de cambiar la contraseña exitosamente
+const onPasswordCambiada = () => {
+  console.log('Contraseña cambiada exitosamente');
+  // Aquí podrías agregar alguna notificación o acción adicional si lo deseas
+};
 
 const logout = () => {
   localStorage.removeItem('authToken');
@@ -120,5 +151,14 @@ body {
 
 .router-link-exact-active {
   border-bottom: 2px solid #2563eb;
+}
+
+button {
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 </style>

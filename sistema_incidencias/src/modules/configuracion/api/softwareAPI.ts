@@ -24,6 +24,24 @@ export interface EquipoSoftware {
   nombre?: string;
   version?: string;
   fabricante?: string;
+  tipoLicencia?: string;
+}
+
+export interface EquipoConSoftware {
+  idEquipo: number;
+  codigo: string;
+  nombre: string;
+  marca?: string;
+  modelo?: string;
+  idTipoEquipo: number;
+  tipo_equipo_nombre?: string;
+  ubicacion?: string;
+  responsable_nombre?: string;
+  estado?: string;
+  fechaInstalacion: string;
+  licenciaKey?: string;
+  usuarioInstalacion: string;
+  comentarios?: string;
 }
 
 const softwareAPI = axios.create({
@@ -58,6 +76,10 @@ export const softwareService = {
   // Obtener software instalado en un equipo
   obtenerSoftwareEquipo: (idEquipo: number): Promise<AxiosResponse<EquipoSoftware[]>> => 
     softwareAPI.get<EquipoSoftware[]>(`/equipos/${idEquipo}/software`),
+
+  // Obtener equipos que tienen instalado un software especifico
+  obtenerEquiposConSoftware: (idSoftware: number): Promise<AxiosResponse<EquipoConSoftware[]>> => 
+    softwareAPI.get<EquipoConSoftware[]>(`/software/${idSoftware}/equipos`),
 
   // Instalar software en equipo
   instalarSoftware: (idEquipo: number, datos: Omit<EquipoSoftware, 'idEquipoSoftware' | 'idEquipo'>): Promise<AxiosResponse<any>> => 

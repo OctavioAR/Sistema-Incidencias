@@ -47,7 +47,6 @@
               {{ edificio.codigo }} - {{ edificio.nombre }}
             </option>
           </select>
-          <small>Opcional: Selecciona el edificio donde se encuentra el aula</small>
         </div>
         
         <div class="form-actions">

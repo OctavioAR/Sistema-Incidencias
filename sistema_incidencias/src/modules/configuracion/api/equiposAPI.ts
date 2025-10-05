@@ -37,27 +37,27 @@ export interface Equipo {
 export interface CrearEquipoRequest {
   codigo: string;
   nombre: string;
-  marca?: string;
-  modelo?: string;
-  noSerie?: string;
+  marca?: string | null;
+  modelo?: string | null;
+  noSerie?: string | null;
   idTipoEquipo: number;
-  sistemaOperativo?: string;
-  procesador?: string;
-  ram_gb?: number;
-  almacenamiento_gb?: number;
-  direccion_ip?: string;
-  direccion_mac?: string;
-  fechaCompra?: string;
-  expiracionGarantia?: string;
-  idDepartamento?: number;
-  idAula?: number;
-  idResponsable?: number;
+  sistemaOperativo?: string | null;
+  procesador?: string | null;
+  ram_gb?: number | null;
+  almacenamiento_gb?: number | null;
+  direccion_ip?: string | null;
+  direccion_mac?: string | null;
+  fechaCompra?: string | null;
+  expiracionGarantia?: string | null;
+  idDepartamento?: number | null;
+  idAula?: number | null;
+  idResponsable?: number | null;
   estado?: string;
 }
 
 export interface ActualizarEquipoRequest extends Partial<CrearEquipoRequest> {
-  fechaUltimoMantenimiento?: string;
-  fechaBaja?: string;
+  fechaUltimoMantenimiento?: string | null;
+  fechaBaja?: string | null;
 }
 
 export interface EquipoSoftware {

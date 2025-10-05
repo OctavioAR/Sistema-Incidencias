@@ -17,7 +17,7 @@
             maxlength="10"
             placeholder="Ej: EA, EB, EC"
           >
-          <small>Código único del edificio (máx. 10 caracteres)</small>
+          <small>Código único del edificio</small>
         </div>
         
         <div class="form-group">

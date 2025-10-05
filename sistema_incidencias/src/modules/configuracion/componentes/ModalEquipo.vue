@@ -43,6 +43,7 @@
                 v-model="formulario.idTipoEquipo" 
                 required
                 class="form-select"
+                @change="onTipoEquipoChange"
               >
                 <option value="">Seleccionar tipo...</option>
                 <option 
@@ -109,7 +110,8 @@
               >
             </div>
             
-            <div class="form-group">
+            <!-- Solo mostrar para computadoras -->
+            <div class="form-group" v-if="esComputadora">
               <label for="sistemaOperativo">Sistema Operativo</label>
               <input 
                 id="sistemaOperativo"
@@ -120,7 +122,8 @@
               >
             </div>
             
-            <div class="form-group">
+            <!-- Solo mostrar para computadoras -->
+            <div class="form-group" v-if="esComputadora">
               <label for="procesador">Procesador</label>
               <input 
                 id="procesador"
@@ -131,7 +134,8 @@
               >
             </div>
             
-            <div class="form-group">
+            <!-- Solo mostrar para computadoras -->
+            <div class="form-group" v-if="esComputadora">
               <label for="ram_gb">Memoria RAM (GB)</label>
               <input 
                 id="ram_gb"
@@ -143,7 +147,8 @@
               >
             </div>
             
-            <div class="form-group">
+            <!-- Solo mostrar para computadoras -->
+            <div class="form-group" v-if="esComputadora">
               <label for="almacenamiento_gb">Almacenamiento (GB)</label>
               <input 
                 id="almacenamiento_gb"
@@ -160,7 +165,8 @@
         <div class="form-section">
           <h4>Información de Red</h4>
           <div class="form-grid">
-            <div class="form-group">
+            <!-- Mostrar IP solo para computadoras y dispositivos de red -->
+            <div class="form-group" v-if="tieneConfiguracionRed">
               <label for="direccion_ip">Dirección IP</label>
               <input 
                 id="direccion_ip"
@@ -171,7 +177,8 @@
               >
             </div>
             
-            <div class="form-group">
+            <!-- Mostrar MAC solo para computadoras y dispositivos de red -->
+            <div class="form-group" v-if="tieneConfiguracionRed">
               <label for="direccion_mac">Dirección MAC</label>
               <input 
                 id="direccion_mac"
@@ -189,20 +196,20 @@
           <h4>Ubicación y Responsable</h4>
           <div class="form-grid">
             <div class="form-group">
-              <label for="idDepartamento">Departamento</label>
+              <label for="idEdificio">Edificio</label>
               <select 
-                id="idDepartamento"
-                v-model="formulario.idDepartamento" 
+                id="idEdificio"
+                v-model="idEdificioSeleccionado" 
                 class="form-select"
-                @change="formulario.idAula = undefined"
+                @change="onEdificioChange"
               >
-                <option :value="undefined">Seleccionar departamento...</option>
+                <option :value="undefined">Seleccionar edificio...</option>
                 <option 
-                  v-for="depto in departamentos" 
-                  :key="depto.idDepartamento" 
-                  :value="depto.idDepartamento"
+                  v-for="edificio in edificios" 
+                  :key="edificio.idEdificio" 
+                  :value="edificio.idEdificio"
                 >
-                  {{ depto.nombre }}
+                  {{ edificio.nombre }}
                 </option>
               </select>
             </div>
@@ -213,6 +220,7 @@
                 id="idAula"
                 v-model="formulario.idAula" 
                 class="form-select"
+                :disabled="!idEdificioSeleccionado"
               >
                 <option :value="undefined">Seleccionar aula...</option>
                 <option 
@@ -223,9 +231,30 @@
                   {{ aula.codigo }} - {{ aula.nombre }}
                 </option>
               </select>
-              <small v-if="formulario.idDepartamento && aulasFiltradas.length === 0">
-                No hay aulas en este departamento
+              <small v-if="!idEdificioSeleccionado">
+                Primero selecciona un edificio
               </small>
+              <small v-else-if="aulasFiltradas.length === 0">
+                No hay aulas en este edificio
+              </small>
+            </div>
+            
+            <div class="form-group">
+              <label for="idDepartamento">Departamento</label>
+              <select 
+                id="idDepartamento"
+                v-model="formulario.idDepartamento" 
+                class="form-select"
+              >
+                <option :value="undefined">Seleccionar departamento...</option>
+                <option 
+                  v-for="depto in departamentos" 
+                  :key="depto.idDepartamento" 
+                  :value="depto.idDepartamento"
+                >
+                  {{ depto.nombre }}
+                </option>
+              </select>
             </div>
             
             <div class="form-group">
@@ -295,7 +324,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { equiposService, type Equipo, type CrearEquipoRequest, type ActualizarEquipoRequest } from '../api/equiposAPI';
-import type { Departamento, Aula } from '../api/ubicacionesAPI';
+import type { Departamento, Aula, Edificio } from '../api/ubicacionesAPI';
 import type { UsuarioCompleto } from '../api/usuariosAPI';
 
 interface Props {
@@ -305,6 +334,7 @@ interface Props {
   departamentos: Departamento[];
   aulas: Aula[];
   usuarios: UsuarioCompleto[];
+  edificios: Edificio[];
 }
 
 interface Emits {
@@ -314,37 +344,65 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+const idEdificioSeleccionado = ref<number | undefined>(undefined);
 
 const cargando = ref(false);
 const formulario = ref<ActualizarEquipoRequest>({
   codigo: '',
   nombre: '',
-  marca: '',
-  modelo: '',
-  noSerie: '',
+  marca: null,
+  modelo: null,
+  noSerie: null,
   idTipoEquipo: undefined,
-  sistemaOperativo: '',
-  procesador: '',
-  ram_gb: undefined,
-  almacenamiento_gb: undefined,
-  direccion_ip: '',
-  direccion_mac: '',
-  fechaCompra: '',
-  expiracionGarantia: '',
-  idDepartamento: undefined,
-  idAula: undefined,
-  idResponsable: undefined,
+  sistemaOperativo: null,
+  procesador: null,
+  ram_gb: null,
+  almacenamiento_gb: null,
+  direccion_ip: null,
+  direccion_mac: null,
+  fechaCompra: null,
+  expiracionGarantia: null,
+  idDepartamento: null,
+  idAula: null,
+  idResponsable: null,
   estado: 'activo',
-  fechaUltimoMantenimiento: '',
-  fechaBaja: '',
+  fechaUltimoMantenimiento: null,
+  fechaBaja: null,
 });
 
 const esEdicion = computed(() => !!props.equipo);
 
-const aulasFiltradas = computed(() => {
-  if (!formulario.value.idDepartamento) return props.aulas;
-  return props.aulas.filter(aula => aula.idEdificio === formulario.value.idDepartamento);
+// Computed properties para controlar qué campos mostrar
+const esComputadora = computed(() => {
+  if (!formulario.value.idTipoEquipo) return false;
+  const tipo = props.tiposEquipo.find(t => t.idTipoEquipo === formulario.value.idTipoEquipo);
+  return tipo?.nombre === 'Computadora';
 });
+
+const tieneConfiguracionRed = computed(() => {
+  if (!formulario.value.idTipoEquipo) return false;
+  const tipo = props.tiposEquipo.find(t => t.idTipoEquipo === formulario.value.idTipoEquipo);
+  // Computadoras, switches y routers tienen configuración de red
+  return ['Computadora', 'Switch', 'Router'].includes(tipo?.nombre || '');
+});
+
+const aulasFiltradas = computed(() => {
+  if (!idEdificioSeleccionado.value) return [];
+  return props.aulas.filter(aula => aula.idEdificio === idEdificioSeleccionado.value);
+});
+
+// Función helper para convertir valores vacíos a null
+const toNullIfEmpty = (value: any): any => {
+  if (value === '' || value === undefined) return null;
+  return value;
+};
+
+// Función helper para convertir valores de formulario
+const convertFormValue = (value: any): any => {
+  if (value === '' || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  return value;
+};
 
 watch(() => props.mostrar, (nuevoValor) => {
   if (nuevoValor) {
@@ -352,51 +410,78 @@ watch(() => props.mostrar, (nuevoValor) => {
       formulario.value = {
         codigo: props.equipo.codigo,
         nombre: props.equipo.nombre,
-        marca: props.equipo.marca || '',
-        modelo: props.equipo.modelo || '',
-        noSerie: props.equipo.noSerie || '',
+        marca: convertFormValue(props.equipo.marca),
+        modelo: convertFormValue(props.equipo.modelo),
+        noSerie: convertFormValue(props.equipo.noSerie),
         idTipoEquipo: props.equipo.idTipoEquipo,
-        sistemaOperativo: props.equipo.sistemaOperativo || '',
-        procesador: props.equipo.procesador || '',
-        ram_gb: props.equipo.ram_gb,
-        almacenamiento_gb: props.equipo.almacenamiento_gb,
-        direccion_ip: props.equipo.direccion_ip || '',
-        direccion_mac: props.equipo.direccion_mac || '',
-        fechaCompra: props.equipo.fechaCompra ? formatDateForInput(props.equipo.fechaCompra) : '',
-        expiracionGarantia: props.equipo.expiracionGarantia ? formatDateForInput(props.equipo.expiracionGarantia) : '',
-        idDepartamento: props.equipo.idDepartamento,
-        idAula: props.equipo.idAula,
-        idResponsable: props.equipo.idResponsable,
+        sistemaOperativo: convertFormValue(props.equipo.sistemaOperativo),
+        procesador: convertFormValue(props.equipo.procesador),
+        ram_gb: convertFormValue(props.equipo.ram_gb),
+        almacenamiento_gb: convertFormValue(props.equipo.almacenamiento_gb),
+        direccion_ip: convertFormValue(props.equipo.direccion_ip),
+        direccion_mac: convertFormValue(props.equipo.direccion_mac),
+        fechaCompra: props.equipo.fechaCompra ? formatDateForInput(props.equipo.fechaCompra) : null,
+        expiracionGarantia: props.equipo.expiracionGarantia ? formatDateForInput(props.equipo.expiracionGarantia) : null,
+        idDepartamento: convertFormValue(props.equipo.idDepartamento),
+        idAula: convertFormValue(props.equipo.idAula),
+        idResponsable: convertFormValue(props.equipo.idResponsable),
         estado: props.equipo.estado || 'activo',
-        fechaUltimoMantenimiento: props.equipo.fechaUltimoMantenimiento ? formatDateForInput(props.equipo.fechaUltimoMantenimiento) : '',
-        fechaBaja: props.equipo.fechaBaja ? formatDateForInput(props.equipo.fechaBaja) : ''
+        fechaUltimoMantenimiento: props.equipo.fechaUltimoMantenimiento ? formatDateForInput(props.equipo.fechaUltimoMantenimiento) : null,
+        fechaBaja: props.equipo.fechaBaja ? formatDateForInput(props.equipo.fechaBaja) : null
       };
+      if (props.equipo.idAula) {
+        const aula = props.aulas.find(a => a.idAula === props.equipo!.idAula);
+        if (aula) {
+          idEdificioSeleccionado.value = aula.idEdificio;
+        }
+      }
     } else {
+      // Reset a valores por defecto con null
       formulario.value = {
         codigo: '',
         nombre: '',
-        marca: '',
-        modelo: '',
-        noSerie: '',
+        marca: null,
+        modelo: null,
+        noSerie: null,
         idTipoEquipo: undefined,
-        sistemaOperativo: '',
-        procesador: '',
-        ram_gb: undefined,
-        almacenamiento_gb: undefined,
-        direccion_ip: '',
-        direccion_mac: '',
-        fechaCompra: '',
-        expiracionGarantia: '',
-        idDepartamento: undefined,
-        idAula: undefined,
-        idResponsable: undefined,
+        sistemaOperativo: null,
+        procesador: null,
+        ram_gb: null,
+        almacenamiento_gb: null,
+        direccion_ip: null,
+        direccion_mac: null,
+        fechaCompra: null,
+        expiracionGarantia: null,
+        idDepartamento: null,
+        idAula: null,
+        idResponsable: null,
         estado: 'activo',
-        fechaUltimoMantenimiento: '',
-        fechaBaja: ''
+        fechaUltimoMantenimiento: null,
+        fechaBaja: null
       };
+      idEdificioSeleccionado.value = undefined;
     }
   }
 });
+
+const onTipoEquipoChange = () => {
+  // Limpiar campos que no aplican para el nuevo tipo de equipo
+  if (!esComputadora.value) {
+    formulario.value.sistemaOperativo = null;
+    formulario.value.procesador = null;
+    formulario.value.ram_gb = null;
+    formulario.value.almacenamiento_gb = null;
+  }
+  
+  if (!tieneConfiguracionRed.value) {
+    formulario.value.direccion_ip = null;
+    formulario.value.direccion_mac = null;
+  }
+};
+
+const onEdificioChange = () => {
+  formulario.value.idAula = null;
+};
 
 const formatDateForInput = (dateString: string) => {
   const date = new Date(dateString);
@@ -407,6 +492,78 @@ const cerrar = () => {
   emit('cerrar');
 };
 
+// Función helper mejorada para convertir valores
+const safeValue = (value: any): any => {
+  if (value === undefined || value === '') {
+    return null;
+  }
+  // Para números, convertir a número o null
+  if (typeof value === 'string' && !isNaN(Number(value)) && value.trim() !== '') {
+    return Number(value);
+  }
+  return value;
+};
+
+// Función para preparar datos para envío
+const prepararDatosParaEnvio = (): CrearEquipoRequest => {
+  const datosLimpios: CrearEquipoRequest = {
+    codigo: formulario.value.codigo || '',
+    nombre: formulario.value.nombre || '',
+    idTipoEquipo: formulario.value.idTipoEquipo as number,
+    estado: formulario.value.estado || 'activo',
+
+    marca: safeValue(formulario.value.marca),
+    modelo: safeValue(formulario.value.modelo),
+    noSerie: safeValue(formulario.value.noSerie),
+    sistemaOperativo: safeValue(formulario.value.sistemaOperativo),
+    procesador: safeValue(formulario.value.procesador),
+    ram_gb: safeValue(formulario.value.ram_gb),
+    almacenamiento_gb: safeValue(formulario.value.almacenamiento_gb),
+    direccion_ip: safeValue(formulario.value.direccion_ip),
+    direccion_mac: safeValue(formulario.value.direccion_mac),
+    fechaCompra: safeValue(formulario.value.fechaCompra),
+    expiracionGarantia: safeValue(formulario.value.expiracionGarantia),
+    idDepartamento: safeValue(formulario.value.idDepartamento),
+    idAula: safeValue(formulario.value.idAula),
+    idResponsable: safeValue(formulario.value.idResponsable),
+  };
+
+  console.log('Datos a enviar:', datosLimpios);
+
+  return datosLimpios;
+};
+
+// Función para preparar datos de actualización
+const prepararDatosParaActualizacion = (): ActualizarEquipoRequest => {
+  const datosLimpios: ActualizarEquipoRequest = {
+    codigo: formulario.value.codigo || '',
+    nombre: formulario.value.nombre || '',
+    idTipoEquipo: formulario.value.idTipoEquipo as number,
+    estado: formulario.value.estado || 'activo',
+
+    marca: safeValue(formulario.value.marca),
+    modelo: safeValue(formulario.value.modelo),
+    noSerie: safeValue(formulario.value.noSerie),
+    sistemaOperativo: safeValue(formulario.value.sistemaOperativo),
+    procesador: safeValue(formulario.value.procesador),
+    ram_gb: safeValue(formulario.value.ram_gb),
+    almacenamiento_gb: safeValue(formulario.value.almacenamiento_gb),
+    direccion_ip: safeValue(formulario.value.direccion_ip),
+    direccion_mac: safeValue(formulario.value.direccion_mac),
+    fechaCompra: safeValue(formulario.value.fechaCompra),
+    expiracionGarantia: safeValue(formulario.value.expiracionGarantia),
+    idDepartamento: safeValue(formulario.value.idDepartamento),
+    idAula: safeValue(formulario.value.idAula),
+    idResponsable: safeValue(formulario.value.idResponsable),
+    fechaUltimoMantenimiento: safeValue(formulario.value.fechaUltimoMantenimiento),
+    fechaBaja: safeValue(formulario.value.fechaBaja),
+  };
+
+  console.log('Datos para actualizar:', datosLimpios); // Para debug
+
+  return datosLimpios;
+};
+
 const guardar = async () => {
   if (!formulario.value.codigo?.trim() || 
       !formulario.value.nombre?.trim() || !formulario.value.idTipoEquipo) {
@@ -414,37 +571,30 @@ const guardar = async () => {
     return;
   }
 
-  if (formulario.value.direccion_ip && !isValidIP(formulario.value.direccion_ip)) {
-    alert('Por favor ingresa una dirección IP válida');
-    return;
-  }
+  // Solo validar IP y MAC si el equipo tiene configuración de red y los campos no son null
+  if (tieneConfiguracionRed.value) {
+    const ip = formulario.value.direccion_ip;
+    const mac = formulario.value.direccion_mac;
+    
+    if (ip && ip !== '' && ip !== null && !isValidIP(ip)) {
+      alert('Por favor ingresa una dirección IP válida');
+      return;
+    }
 
-  if (formulario.value.direccion_mac && !isValidMAC(formulario.value.direccion_mac)) {
-    alert('Por favor ingresa una dirección MAC válida (formato: 00:1A:2B:3C:4D:10)');
-    return;
+    if (mac && mac !== '' && mac !== null && !isValidMAC(mac)) {
+      alert('Por favor ingresa una dirección MAC válida (formato: 00:1A:2B:3C:4D:10)');
+      return;
+    }
   }
 
   cargando.value = true;
   try {
     if (esEdicion.value && props.equipo?.idEquipo) {
-      await equiposService.actualizarEquipo(props.equipo.idEquipo, formulario.value);
+      const datosParaEnviar = prepararDatosParaActualizacion();
+      await equiposService.actualizarEquipo(props.equipo.idEquipo, datosParaEnviar);
     } else {
-      await equiposService.crearEquipo({
-        ...formulario.value,
-        idTipoEquipo: formulario.value.idTipoEquipo as number,
-        codigo: formulario.value.codigo || '',
-        nombre: formulario.value.nombre || '',
-        marca: formulario.value.marca || '',
-        modelo: formulario.value.modelo || '',
-        noSerie: formulario.value.noSerie || '',
-        sistemaOperativo: formulario.value.sistemaOperativo || '',
-        procesador: formulario.value.procesador || '',
-        direccion_ip: formulario.value.direccion_ip || '',
-        direccion_mac: formulario.value.direccion_mac || '',
-        fechaCompra: formulario.value.fechaCompra || '',
-        expiracionGarantia: formulario.value.expiracionGarantia || '',
-        estado: formulario.value.estado || 'activo'
-      });
+      const datosParaEnviar = prepararDatosParaEnvio();
+      await equiposService.crearEquipo(datosParaEnviar);
     }
     
     emit('guardado');
@@ -452,6 +602,7 @@ const guardar = async () => {
   } catch (error: any) {
     const mensajeError = error.response?.data?.error || 'Error al guardar el equipo';
     alert(mensajeError);
+    console.error('Error detallado:', error);
   } finally {
     cargando.value = false;
   }
@@ -469,7 +620,6 @@ const isValidMAC = (mac: string) => {
 </script>
 
 <style scoped>
-/* Reutilizar estilos del ModalUsuario pero adaptar para más campos */
 .modal-overlay {
   position: fixed;
   top: 0;

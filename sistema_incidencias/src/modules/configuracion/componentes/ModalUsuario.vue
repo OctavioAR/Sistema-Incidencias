@@ -115,7 +115,7 @@
                   {{ depto.nombre }}
                 </option>
               </select>
-              <small>Opcional: Asignar a un departamento específico</small>
+              <small></small>
             </div>
           </div>
         </div>

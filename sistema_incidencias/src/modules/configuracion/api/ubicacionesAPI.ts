@@ -5,7 +5,6 @@ const ubicacionesAPI = axios.create({
   baseURL: "http://localhost:3001",
 });
 
-// Interceptor para agregar el ID del usuario a las peticiones
 ubicacionesAPI.interceptors.request.use((config) => {
   const usuarioStr = localStorage.getItem('usuario');
   if (usuarioStr) {

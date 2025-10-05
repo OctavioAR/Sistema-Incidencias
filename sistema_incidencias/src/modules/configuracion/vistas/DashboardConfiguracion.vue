@@ -24,12 +24,12 @@
         <p>Gestionar aplicaciones y licencias</p>
       </router-link>
       
-      <!-- Gestion de Contratos -->
+      <!-- Gestion de Contratos 
       <router-link to="/configuracion/contratos" class="card">
         <div class="card-icon">📝</div>
         <h3>Contratos</h3>
         <p>Gestionar mantenimiento y garantías</p>
-      </router-link>
+      </router-link>-->
       
       <!-- Gestion de Usuarios -->
       <router-link to="/configuracion/usuarios" class="card">
@@ -71,7 +71,7 @@
 }
 
 .card:hover {
-  transform: translateY(-5px);
+  /*transform: translateY(-5px);*/
   box-shadow: 0 10px 25px rgba(0,0,0,0.1);
   border-color: #2563eb;
 }

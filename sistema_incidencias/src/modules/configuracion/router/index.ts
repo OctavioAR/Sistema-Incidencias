@@ -31,12 +31,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../vistas/GestionSoftwareView.vue'),
     meta: { requiresAuth: true }
   },
-  /*{
+  {
     path: '/configuracion/contratos',
     name: 'GestionContratos',
     component: () => import('../vistas/GestionContratosView.vue'),
     meta: { requiresAuth: true }
-  }*/
+  }
 ];
 
 export default routes;

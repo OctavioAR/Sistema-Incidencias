@@ -80,7 +80,7 @@
             <td>{{ usuario.departamento_nombre || 'Sin asignar' }}</td>
             <td>
               <span class="estado" :class="usuario.activo ? 'activo' : 'inactivo'">
-                {{ usuario.activo ? '✅ Activo' : '❌ Inactivo' }}
+                {{ usuario.activo ? 'Activo' : 'Inactivo' }}
               </span>
             </td>
             <td>{{ formatFecha(usuario.fecha_creacion) }}</td>
