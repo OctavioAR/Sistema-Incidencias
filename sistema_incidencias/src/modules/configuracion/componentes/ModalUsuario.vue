@@ -44,12 +44,7 @@
                 placeholder="Ej: Gómez"
               >
             </div>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <h4>Información de Cuenta</h4>
-          <div class="form-grid">
+            
             <div class="form-group">
               <label for="email">Email *</label>
               <input 
@@ -60,6 +55,57 @@
                 maxlength="255"
                 placeholder="Ej: juan.perez@universidad.edu"
               >
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h4>Información de Rol y Departamento</h4>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="idTipoUsuario">Tipo de Usuario *</label>
+              <select 
+                id="idTipoUsuario"
+                v-model="formulario.idTipoUsuario" 
+                required
+                class="form-select"
+                @change="onTipoUsuarioChange"
+              >
+                <option value="">Seleccionar tipo...</option>
+                <option 
+                  v-for="tipo in tiposUsuarioFiltrados" 
+                  :key="tipo.idTipoUsuario" 
+                  :value="tipo.idTipoUsuario"
+                >
+                  {{ tipo.nombre }}
+                </option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="idDepartamento">Departamento *</label>
+              <select 
+                id="idDepartamento"
+                v-model="formulario.idDepartamento" 
+                :required="!!requiereDepartamento"
+                class="form-select"
+                :disabled="!puedeSeleccionarDepartamento"
+              >
+                <option value="">Seleccionar departamento...</option>
+                <option 
+                  v-for="depto in departamentosDisponibles" 
+                  :key="depto.idDepartamento" 
+                  :value="depto.idDepartamento"
+                >
+                  {{ depto.nombre }}
+                </option>
+              </select>
+              <small v-if="!puedeSeleccionarDepartamento">
+                El Jefe de Taller puede asignar cualquier departamento
+              </small>
+              <small v-else-if="esJefeDepartamento">
+                Será responsable de este departamento
+              </small>
             </div>
             
             <div class="form-group" v-if="!esEdicion">
@@ -72,67 +118,8 @@
                 minlength="6"
                 placeholder="Mínimo 6 caracteres"
               >
-              <small v-if="!esEdicion">La contraseña se asignará al usuario</small>
+              <small>La contraseña debe tener al menos 6 caracteres</small>
             </div>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <h4>Configuración del Usuario</h4>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="idTipoUsuario">Tipo de Usuario *</label>
-              <select 
-                id="idTipoUsuario"
-                v-model="formulario.idTipoUsuario" 
-                required
-                class="form-select"
-              >
-                <option value="">Seleccionar tipo...</option>
-                <option 
-                  v-for="tipo in tiposUsuario" 
-                  :key="tipo.idTipoUsuario" 
-                  :value="tipo.idTipoUsuario"
-                >
-                  {{ tipo.nombre }}
-                </option>
-              </select>
-            </div>
-            
-            <div class="form-group">
-              <label for="idDepartamento">Departamento</label>
-              <select 
-                id="idDepartamento"
-                v-model="formulario.idDepartamento" 
-                class="form-select"
-              >
-                <option :value="undefined">Seleccionar departamento...</option>
-                <option 
-                  v-for="depto in departamentos" 
-                  :key="depto.idDepartamento" 
-                  :value="depto.idDepartamento"
-                >
-                  {{ depto.nombre }}
-                </option>
-              </select>
-              <small></small>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section" v-if="esEdicion">
-          <h4>Estado del Usuario</h4>
-          <div class="form-group">
-            <label class="checkbox-label">
-              <input 
-                type="checkbox" 
-                v-model="formulario.activo"
-                class="checkbox"
-              >
-              <span class="checkmark"></span>
-              Usuario activo (puede iniciar sesión)
-            </label>
-            <small>Desmarcar para desactivar temporalmente al usuario</small>
           </div>
         </div>
 
@@ -149,7 +136,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { usuariosService, type UsuarioCompleto, type CrearUsuarioRequest, type ActualizarUsuarioRequest } from '../api/usuariosAPI';
+import { usuariosService, type UsuarioCompleto, type CrearUsuarioRequest } from '../api/usuariosAPI';
 import type { Departamento } from '../api/ubicacionesAPI';
 
 interface Props {
@@ -168,18 +155,68 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const cargando = ref(false);
+const usuarioActual = ref(JSON.parse(localStorage.getItem('usuario') || '{}'));
+
 const formulario = ref({
   nombre: '',
   apellidoPat: '',
   apellidoMat: '',
   email: '',
-  password: 'password123',
-  idTipoUsuario: 0,
+  idTipoUsuario: undefined as number | undefined,
   idDepartamento: undefined as number | undefined,
-  activo: true
+  password: ''
 });
 
 const esEdicion = computed(() => !!props.usuario);
+
+// Computed properties para la lógica de permisos
+const esJefeTaller = computed(() => {
+  return usuarioActual.value.tipo_usuario_nombre === 'Jefe de Taller';
+});
+
+const esJefeDepartamento = computed(() => {
+  return formulario.value.idTipoUsuario === 5; // ID del Jefe de Departamento
+});
+
+const requiereDepartamento = computed(() => {
+  // Jefes de Departamento y Maestros requieren departamento
+  const tiposConDepartamento = [4, 5]; // Maestro y Jefe de Departamento
+  return formulario.value.idTipoUsuario && tiposConDepartamento.includes(formulario.value.idTipoUsuario);
+});
+
+const puedeSeleccionarDepartamento = computed(() => {
+  // Solo Jefe de Taller puede seleccionar departamento libremente
+  // Jefes de Departamento solo pueden ser asignados a su propio departamento
+  return esJefeTaller.value;
+});
+
+const tiposUsuarioFiltrados = computed(() => {
+  // Jefe de Taller puede crear cualquier tipo de usuario
+  if (esJefeTaller.value) {
+    return props.tiposUsuario;
+  }
+  
+  // Jefe de Departamento solo puede crear Maestros
+  if (usuarioActual.value.tipo_usuario_nombre === 'Jefe de Departamento') {
+    return props.tiposUsuario.filter(tipo => tipo.nombre === 'Maestro');
+  }
+  
+  return [];
+});
+
+const departamentosDisponibles = computed(() => {
+  // Jefe de Taller ve todos los departamentos
+  if (esJefeTaller.value) {
+    return props.departamentos;
+  }
+  
+  // Jefe de Departamento solo ve su propio departamento
+  if (usuarioActual.value.tipo_usuario_nombre === 'Jefe de Departamento') {
+    return props.departamentos.filter(depto => depto.idDepartamento === usuarioActual.value.idDepartamento);
+  }
+  
+  return [];
+});
 
 watch(() => props.mostrar, (nuevoValor) => {
   if (nuevoValor) {
@@ -189,76 +226,56 @@ watch(() => props.mostrar, (nuevoValor) => {
         apellidoPat: props.usuario.apellidoPat,
         apellidoMat: props.usuario.apellidoMat || '',
         email: props.usuario.email,
-        password: '',
         idTipoUsuario: props.usuario.idTipoUsuario,
         idDepartamento: props.usuario.idDepartamento,
-        activo: props.usuario.activo
+        password: '' // No mostramos la contraseña en edición
       };
     } else {
-      formulario.value = { 
-        nombre: '', 
-        apellidoPat: '', 
-        apellidoMat: '', 
-        email: '', 
-        password: 'password123', 
-        idTipoUsuario: 0, 
-        idDepartamento: undefined, 
-        activo: true 
+      formulario.value = {
+        nombre: '',
+        apellidoPat: '',
+        apellidoMat: '',
+        email: '',
+        idTipoUsuario: undefined,
+        idDepartamento: undefined,
+        password: ''
       };
+      
+      // Si es Jefe de Departamento, asignar automáticamente su departamento
+      if (usuarioActual.value.tipo_usuario_nombre === 'Jefe de Departamento') {
+        formulario.value.idDepartamento = usuarioActual.value.idDepartamento;
+      }
     }
   }
 });
+
+const onTipoUsuarioChange = () => {
+  // Limpiar departamento si el nuevo tipo no lo requiere
+  if (!requiereDepartamento.value) {
+    formulario.value.idDepartamento = undefined;
+  }
+};
 
 const cerrar = () => {
   emit('cerrar');
 };
 
 const guardar = async () => {
-  if (!formulario.value.nombre.trim() || 
-      !formulario.value.apellidoPat.trim() || 
-      !formulario.value.email.trim() || 
-      formulario.value.idTipoUsuario === 0) {
-    alert('Por favor completa todos los campos obligatorios');
-    return;
-  }
-
-  if (!esEdicion.value && !formulario.value.password) {
-    alert('La contraseña es obligatoria para nuevos usuarios');
-    return;
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(formulario.value.email)) {
-    alert('Por favor ingresa un email válido');
-    return;
-  }
+  if (!validarFormulario()) return;
 
   cargando.value = true;
   try {
     if (esEdicion.value && props.usuario?.idUsuario) {
-      const datosActualizacion: ActualizarUsuarioRequest = {
-        nombre: formulario.value.nombre,
-        apellidoPat: formulario.value.apellidoPat,
-        apellidoMat: formulario.value.apellidoMat || '',
-        email: formulario.value.email,
-        idTipoUsuario: formulario.value.idTipoUsuario,
-        idDepartamento: formulario.value.idDepartamento,
-        activo: formulario.value.activo
+      const { password, ...resto } = formulario.value;
+      const datosActualizacion = {
+        ...resto,
+        activo: props.usuario.activo, // Asegura que el campo 'activo' esté presente
+        idTipoUsuario: formulario.value.idTipoUsuario ?? 0,
+        idDepartamento: formulario.value.idDepartamento ?? 0
       };
-      
       await usuariosService.actualizarUsuario(props.usuario.idUsuario, datosActualizacion);
     } else {
-      const datosCreacion: CrearUsuarioRequest = {
-        nombre: formulario.value.nombre,
-        apellidoPat: formulario.value.apellidoPat,
-        apellidoMat: formulario.value.apellidoMat || '',
-        email: formulario.value.email,
-        password: formulario.value.password,
-        idTipoUsuario: formulario.value.idTipoUsuario,
-        idDepartamento: formulario.value.idDepartamento
-      };
-      
-      await usuariosService.crearUsuario(datosCreacion);
+      await usuariosService.crearUsuario(formulario.value as CrearUsuarioRequest);
     }
     
     emit('guardado');
@@ -269,6 +286,28 @@ const guardar = async () => {
   } finally {
     cargando.value = false;
   }
+};
+
+const validarFormulario = (): boolean => {
+  if (!formulario.value.nombre.trim() || 
+      !formulario.value.apellidoPat.trim() || 
+      !formulario.value.email.trim() || 
+      !formulario.value.idTipoUsuario) {
+    alert('Por favor completa todos los campos obligatorios');
+    return false;
+  }
+
+  if (!esEdicion.value && !formulario.value.password) {
+    alert('Por favor ingresa una contraseña');
+    return false;
+  }
+
+  if (requiereDepartamento.value && !formulario.value.idDepartamento) {
+    alert('Este tipo de usuario requiere un departamento');
+    return false;
+  }
+
+  return true;
 };
 </script>
 

@@ -4,14 +4,14 @@
       <h1>Gestión de Software</h1>
     </div>
 
-    <div v-if="esJefeTaller" class="permisos-info">
+    <div v-if="tienePermisos" class="permisos-info">
       <p>✅ Tienes permisos para gestionar software del sistema</p>
     </div>
     <div v-else class="permisos-info no-permisos">
-      <p>❌ Solo el Jefe de Taller puede gestionar software</p>
+      <p>❌ Solo el Jefe de Taller o Jefe de Departamento puede gestionar software</p>
     </div>
 
-    <div class="filtros" v-if="esJefeTaller">
+    <div class="filtros" v-if="tienePermisos">
       <div class="filtro-group">
         <label for="filtroTipoLicencia">Filtrar por tipo de licencia:</label>
         <select id="filtroTipoLicencia" v-model="filtroTipoLicencia" @change="aplicarFiltros">
@@ -42,7 +42,7 @@
         >
       </div>
       
-      <button v-if="esJefeTaller" @click="mostrarModalSoftware" class="btn-primary btn-nuevo-software">
+      <button v-if="tienePermisos" @click="mostrarModalSoftware" class="btn-primary btn-nuevo-software">
         ➕ Nuevo Software
       </button>
     </div>
@@ -61,7 +61,7 @@
             <th>Tipo Licencia</th>
             <th>Expiración Licencia</th>
             <th>Requiere Activación</th>
-            <th v-if="esJefeTaller">Acciones</th>
+            <th v-if="tienePermisos">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -92,7 +92,7 @@
                 {{ soft.requiereActivacion ? 'Sí' : 'No' }}
               </span>
             </td>
-            <td v-if="esJefeTaller" class="actions" @click.stop>
+            <td v-if="tienePermisos" class="actions" @click.stop>
               <button @click="editarSoftware(soft)" class="btn-edit" title="Editar">✏️</button>
               <button @click="eliminarSoftware(soft)" class="btn-delete" title="Eliminar">🗑️</button>
             </td>
@@ -220,7 +220,7 @@
 
           <div class="form-actions">
             <button @click="cerrarDetalles" class="btn-secondary">Cerrar</button>
-            <button v-if="esJefeTaller" @click="editarDesdeDetalles" class="btn-primary">Editar Software</button>
+            <button v-if="tienePermisos" @click="editarDesdeDetalles" class="btn-primary">Editar Software</button>
           </div>
         </div>
       </div>
@@ -252,11 +252,12 @@ const modalDetalles = ref({
   software: null as Software | null
 });
 
-const esJefeTaller = computed(() => {
+const tienePermisos = computed(() => {
   const usuarioStr = localStorage.getItem('usuario');
   if (!usuarioStr) return false;
   const usuario = JSON.parse(usuarioStr);
-  return usuario.tipo_usuario_nombre === 'Jefe de Taller';
+  return usuario.tipo_usuario_nombre === 'Jefe de Taller' ||
+    usuario.tipo_usuario_nombre === 'Jefe de Departamento';
 });
 
 const cargarEquiposConSoftware = async (idSoftware: number) => {

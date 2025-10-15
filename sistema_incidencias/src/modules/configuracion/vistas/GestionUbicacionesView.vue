@@ -2,11 +2,11 @@
   <div class="gestion-ubicaciones">
     <h1>Gestión de Ubicaciones</h1>
     
-    <div v-if="esJefeTaller" class="permisos-info">
+    <div v-if="tienePermisos" class="permisos-info">
       <p>✅ Tienes permisos de Jefe de Taller para gestionar ubicaciones</p>
     </div>
     <div v-else class="permisos-info no-permisos">
-      <p>❌ Solo el Jefe de Taller puede gestionar ubicaciones</p>
+      <p>❌ Solo el Jefe de Taller y Jefe de Departamento puede gestionar ubicaciones</p>
     </div>
 
     <div class="tabs">
@@ -25,7 +25,7 @@
       <div v-if="activeTab === 'edificios'" class="tab-pane">
         <div class="header-actions">
           <h2>Edificios</h2>
-          <button v-if="esJefeTaller" @click="mostrarModalEdificio" class="btn-primary">
+          <button v-if="tienePermisos" @click="mostrarModalEdificio" class="btn-primary">
             ➕ Nuevo Edificio
           </button>
         </div>
@@ -41,7 +41,7 @@
                 <th>Código</th>
                 <th>Nombre</th>
                 <th>Fecha Creación</th>
-                <th v-if="esJefeTaller">Acciones</th>
+                <th v-if="tienePermisos">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -49,7 +49,7 @@
                 <td>{{ edificio.codigo }}</td>
                 <td>{{ edificio.nombre }}</td>
                 <td>{{ formatFecha(edificio.fecha_creacion) }}</td>
-                <td v-if="esJefeTaller" class="actions">
+                <td v-if="tienePermisos" class="actions">
                   <button @click="editarEdificio(edificio)" class="btn-edit" title="Editar">✏️</button>
                   <button @click="eliminarEdificio(edificio.idEdificio!)" class="btn-delete" title="Eliminar">🗑️</button>
                 </td>
@@ -63,7 +63,7 @@
       <div v-if="activeTab === 'aulas'" class="tab-pane">
         <div class="header-actions">
           <h2>Aulas</h2>
-          <button v-if="esJefeTaller" @click="mostrarModalAula" class="btn-primary">
+          <button v-if="tienePermisos" @click="mostrarModalAula" class="btn-primary">
             ➕ Nueva Aula
           </button>
         </div>
@@ -80,7 +80,7 @@
                 <th>Nombre</th>
                 <th>Edificio</th>
                 <th>Fecha Creación</th>
-                <th v-if="esJefeTaller">Acciones</th>
+                <th v-if="tienePermisos">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -89,7 +89,7 @@
                 <td>{{ aula.nombre }}</td>
                 <td>{{ aula.edificio_nombre || 'Sin asignar' }}</td>
                 <td>{{ formatFecha(aula.fecha_creacion) }}</td>
-                <td v-if="esJefeTaller" class="actions">
+                <td v-if="tienePermisos" class="actions">
                   <button @click="editarAula(aula)" class="btn-edit" title="Editar">✏️</button>
                   <button @click="eliminarAula(aula.idAula!)" class="btn-delete" title="Eliminar">🗑️</button>
                 </td>
@@ -103,7 +103,7 @@
       <div v-if="activeTab === 'departamentos'" class="tab-pane">
         <div class="header-actions">
           <h2>Departamentos</h2>
-          <button v-if="esJefeTaller" @click="mostrarModalDepartamento" class="btn-primary">
+          <button v-if="tienePermisos" @click="mostrarModalDepartamento" class="btn-primary">
             ➕ Nuevo Departamento
           </button>
         </div>
@@ -120,7 +120,7 @@
                 <th>Edificio</th>
                 <th>Aula</th>
                 <th>Fecha Creación</th>
-                <th v-if="esJefeTaller">Acciones</th>
+                <th v-if="tienePermisos">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -129,7 +129,7 @@
                 <td>{{ depto.edificio_nombre || 'Sin asignar' }}</td>
                 <td>{{ depto.aula_nombre || 'Sin asignar' }}</td>
                 <td>{{ formatFecha(depto.fecha_creacion) }}</td>
-                <td v-if="esJefeTaller" class="actions">
+                <td v-if="tienePermisos" class="actions">
                   <button @click="editarDepartamento(depto)" class="btn-edit" title="Editar">✏️</button>
                   <button @click="eliminarDepartamento(depto.idDepartamento!)" class="btn-delete" title="Eliminar">🗑️</button>
                 </td>
@@ -201,11 +201,12 @@ const tabs = [
 ];
 
 
-const esJefeTaller = computed(() => {
+const tienePermisos = computed(() => {
   const usuarioStr = localStorage.getItem('usuario');
   if (!usuarioStr) return false;
   const usuario = JSON.parse(usuarioStr);
-  return usuario.tipo_usuario_nombre === 'Jefe de Taller';
+  return usuario.tipo_usuario_nombre === 'Jefe de Taller' ||
+    usuario.tipo_usuario_nombre === 'Jefe de Departamento';
 });
 
 const formatFecha = (fecha: string | undefined) => {

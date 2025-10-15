@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import authRoutes from '../modules/auth/router';
 import configuracionRoutes from '../modules/configuracion/router';
+import incidenciasRoutes from '../modules/incidencias/router';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,6 +14,7 @@ const router = createRouter({
     },
     
     ...configuracionRoutes,
+      ...incidenciasRoutes,
     {
       path: '/jefe/dashboard',
       name: 'JefeDashboard',
@@ -29,6 +31,18 @@ const router = createRouter({
       path: '/maestro/dashboard',
       name: 'MaestroDashboard',
       component: () => import('../modules/dashboard/vistas/MaestroDashboard.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/jefe-departamento/dashboard',
+      name: 'DashboardJefeDepartamento',
+      component: () => import('../modules/dashboard/vistas/JefeDepartamento.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/jefe-departamento/maestros',
+      name: 'GestionMaestrosJefe',
+      component: () => import('../modules/configuracion/vistas/GestionMaestrosJefeView.vue'),
       meta: { requiresAuth: true }
     },
     {

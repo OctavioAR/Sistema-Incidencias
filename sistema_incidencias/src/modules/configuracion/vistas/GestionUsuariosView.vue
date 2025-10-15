@@ -4,14 +4,14 @@
       <h1>Gestión de Usuarios</h1>
     </div>
     
-    <div v-if="esJefeTaller" class="permisos-info">
+    <div v-if="tienePermisos" class="permisos-info">
       <p>✅ Tienes permisos para gestionar usuarios del sistema</p>
     </div>
     <div v-else class="permisos-info no-permisos">
-      <p>❌ Solo el Jefe de Taller puede gestionar usuarios</p>
+      <p>❌ Solo el Jefe de Taller y Jefe de Departamento puede gestionar usuarios</p>
     </div>
 
-    <div class="filtros" v-if="esJefeTaller">
+    <div class="filtros" v-if="tienePermisos">
       <div class="filtro-group">
         <label for="filtroTipo">Filtrar por tipo:</label>
         <select id="filtroTipo" v-model="filtroTipo" @change="aplicarFiltros">
@@ -41,7 +41,7 @@
         >
       </div>
 
-      <button v-if="esJefeTaller" @click="mostrarModalUsuario" class="btn-primary btn-nuevo-usuario">
+      <button v-if="tienePermisos" @click="mostrarModalUsuario" class="btn-primary btn-nuevo-usuario">
         ➕ Nuevo Usuario
       </button>
     </div>
@@ -49,7 +49,7 @@
     <!-- Tabla de usuarios -->
     <div v-if="cargando" class="loading">Cargando usuarios...</div>
     <div v-else-if="usuariosFiltrados.length === 0" class="no-data">
-      <p v-if="esJefeTaller">No hay usuarios registrados</p>
+      <p v-if="tienePermisos">No hay usuarios registrados</p>
       <p v-else>No tienes permisos para ver la lista de usuarios</p>
     </div>
     <div v-else class="table-container">
@@ -62,7 +62,7 @@
             <th>Departamento</th>
             <th>Estado</th>
             <th>Fecha Registro</th>
-            <th v-if="esJefeTaller">Acciones</th>
+            <th v-if="tienePermisos">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -84,7 +84,7 @@
               </span>
             </td>
             <td>{{ formatFecha(usuario.fecha_creacion) }}</td>
-            <td v-if="esJefeTaller" class="actions">
+            <td v-if="tienePermisos" class="actions">
               <button @click="editarUsuario(usuario)" class="btn-edit" title="Editar">✏️</button>
               <button @click="cambiarEstadoUsuario(usuario)" 
                       :class="usuario.activo ? 'btn-warning' : 'btn-success'"
@@ -153,14 +153,16 @@ const modalPassword = ref({
 const tiposUsuario = [
   { idTipoUsuario: 2, nombre: 'Jefe de Taller' },
   { idTipoUsuario: 3, nombre: 'Técnico' },
-  { idTipoUsuario: 4, nombre: 'Maestro' }
+  { idTipoUsuario: 4, nombre: 'Maestro' },
+  { idTipoUsuario: 5, nombre: 'Jefe de Departamento'}
 ];
 
-const esJefeTaller = computed(() => {
+const tienePermisos = computed(() => {
   const usuarioStr = localStorage.getItem('usuario');
   if (!usuarioStr) return false;
   const usuario = JSON.parse(usuarioStr);
-  return usuario.tipo_usuario_nombre === 'Jefe de Taller';
+  return usuario.tipo_usuario_nombre === 'Jefe de Taller'||
+    usuario.tipo_usuario_nombre === 'Jefe de Departamento';
 });
 
 const usuariosFiltrados = computed(() => {
@@ -207,7 +209,7 @@ const formatFecha = (fecha: string | undefined) => {
 };
 
 const cargarDatos = async () => {
-  if (!esJefeTaller.value) return;
+  if (!tienePermisos.value) return;
   
   cargando.value = true;
   try {

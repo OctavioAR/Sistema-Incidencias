@@ -6,7 +6,14 @@
         v-if="usuario?.tipo_usuario_nombre === 'Jefe de Taller'" 
         to="/jefe/dashboard" 
         style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
-        Dashboard Jefe
+        Dashboard Jefe de Taller
+      </router-link>
+
+      <router-link 
+        v-if="usuario?.tipo_usuario_nombre === 'Jefe de Departamento'" 
+        to="/jefe-departamento/dashboard" 
+        style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
+        Dashboard Jefe de Departamento
       </router-link>
       
       <router-link 
@@ -28,6 +35,12 @@
         to="/configuracion" 
         style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
         Configuración
+      </router-link>
+
+      <router-link 
+        to="/incidencias" 
+        style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
+        Incidencias
       </router-link>
       
       <div v-if="usuario" style="float: right;">
@@ -83,7 +96,7 @@ const modalCambiarPassword = ref({
 const mostrarConfiguracion = computed(() => {
   const tipoUsuario = usuario.value?.tipo_usuario_nombre;
   // Solo Jefe de Taller y Técnicos pueden ver configuración
-  return tipoUsuario === 'Jefe de Taller' || tipoUsuario === 'Técnico';
+  return tipoUsuario === 'Jefe de Taller' || tipoUsuario === 'Técnico' || tipoUsuario === 'Jefe de Departamento';
 });
 
 const cargarUsuario = () => {

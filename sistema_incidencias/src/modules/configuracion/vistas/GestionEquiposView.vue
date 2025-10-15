@@ -4,14 +4,14 @@
       <h1>Gestión de Equipos</h1>
     </div>
 
-    <div v-if="esJefeTaller" class="permisos-info">
+    <div v-if="tienePermisos" class="permisos-info">
       <p>✅ Tienes permisos para gestionar equipos del sistema</p>
     </div>
     <div v-else class="permisos-info no-permisos">
-      <p>❌ Solo el Jefe de Taller puede gestionar equipos</p>
+      <p>❌ Solo el Jefe de Taller o Jefe de Departamento puede gestionar equipos</p>
     </div>
 
-    <div class="filtros" v-if="esJefeTaller">
+    <div class="filtros" v-if="tienePermisos">
       <div class="filtro-group">
         <label for="filtroTipo">Filtrar por tipo:</label>
         <select id="filtroTipo" v-model="filtroTipo" @change="aplicarFiltros">
@@ -42,7 +42,7 @@
         >
       </div>
       
-      <button v-if="esJefeTaller" @click="mostrarModalEquipo" class="btn-primary btn-nuevo-usuario">
+      <button v-if="tienePermisos" @click="mostrarModalEquipo" class="btn-primary btn-nuevo-usuario">
         ➕ Nuevo Equipo
       </button>
     </div>
@@ -62,7 +62,7 @@
             <th>Ubicación</th>
             <th>Estado</th>
             <th>Responsable</th>
-            <th v-if="esJefeTaller">Acciones</th>
+            <th v-if="tienePermisos">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -90,7 +90,7 @@
               </span>
             </td>
             <td>{{ equipo.responsable_nombre || 'No asignado' }}</td>
-            <td v-if="esJefeTaller" class="actions" @click.stop>
+            <td v-if="tienePermisos" class="actions" @click.stop>
               <button 
                 @click="instalarSoftware(equipo)" 
                 class="btn-info" 
@@ -250,7 +250,7 @@
 
           <div class="form-actions">
             <button @click="cerrarDetalles" class="btn-secondary">Cerrar</button>
-            <button v-if="esJefeTaller" @click="editarEquipoDesdeDetalles" class="btn-primary">Editar Equipo</button>
+            <button v-if="tienePermisos" @click="editarEquipoDesdeDetalles" class="btn-primary">Editar Equipo</button>
           </div>
         </div>
       </div>
@@ -313,11 +313,12 @@ const tiposEquipo = [
   { idTipoEquipo: 6, nombre: 'Monitor' }
 ];
 
-const esJefeTaller = computed(() => {
+const tienePermisos = computed(() => {
   const usuarioStr = localStorage.getItem('usuario');
   if (!usuarioStr) return false;
   const usuario = JSON.parse(usuarioStr);
-  return usuario.tipo_usuario_nombre === 'Jefe de Taller';
+  return usuario.tipo_usuario_nombre === 'Jefe de Taller'||
+         usuario.tipo_usuario_nombre === 'Jefe de Departamento';
 });
 
 const equiposFiltrados = computed(() => {

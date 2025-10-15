@@ -974,6 +974,197 @@ app.put('/auth/cambiar-password', async (req, res) => {
   }
 });
 
+// Obtener todas las incidencias
+app.get('/incidencias', async (_req, res) => {
+  try {
+    const incidencias = await query(`
+      SELECT i.*, 
+             e.nombre as estado_nombre,
+             t.nombre as tipo_incidencia_nombre,
+             CONCAT(u.nombre, ' ', u.apellidoPat) as usuario_reporta_nombre,
+             CONCAT(ut.nombre, ' ', ut.apellidoPat) as tecnico_asignado_nombre,
+             eq.nombre as equipo_nombre,
+             d.nombre as departamento_nombre
+      FROM Incidencia i
+      LEFT JOIN EstadoIncidencia e ON i.idEstadoIncidencia = e.idEstadoIncidencia
+      LEFT JOIN TipoIncidencia t ON i.idTipoIncidencia = t.idTipoIncidencia
+      LEFT JOIN Usuario u ON i.idUsuarioReporta = u.idUsuario
+      LEFT JOIN Usuario ut ON i.idTecnicoAsignado = ut.idUsuario
+      LEFT JOIN Equipo eq ON i.idEquipo = eq.idEquipo
+      LEFT JOIN Departamento d ON i.idDepartamento = d.idDepartamento
+      ORDER BY i.idIncidencia ASC  -- CAMBIADO: de DESC a ASC
+    `);
+    res.json(incidencias);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener incidencias' });
+  }
+});
+
+// Crear nueva incidencia
+app.post('/incidencias', async (req, res) => {
+  try {
+    const {
+      titulo, descripcion, idTipoIncidencia, idEquipo, idDepartamento, prioridad
+    } = req.body;
+    
+    const usuarioId = req.headers['usuario-id'];
+    
+    const result = await execute(`
+      INSERT INTO Incidencia 
+      (titulo, descripcion, idEstadoIncidencia, idTipoIncidencia, idUsuarioReporta, idEquipo, idDepartamento, prioridad)
+      VALUES (?, ?, 1, ?, ?, ?, ?, ?)
+    `, [titulo, descripcion, idTipoIncidencia, usuarioId, idEquipo, idDepartamento, prioridad]);
+    
+    res.status(201).json({ 
+      message: 'Incidencia creada correctamente', 
+      id: result.insertId 
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al crear incidencia' });
+  }
+});
+
+// Obtener incidencias por usuario
+app.get('/usuarios/:id/incidencias', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const incidencias = await query(`
+      SELECT i.*, e.nombre as estado_nombre, t.nombre as tipo_incidencia_nombre
+      FROM Incidencia i
+      LEFT JOIN EstadoIncidencia e ON i.idEstadoIncidencia = e.idEstadoIncidencia
+      LEFT JOIN TipoIncidencia t ON i.idTipoIncidencia = t.idTipoIncidencia
+      WHERE i.idUsuarioReporta = ?
+      ORDER BY i.fecha_creacion DESC
+    `, [id]);
+    res.json(incidencias);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener incidencias del usuario' });
+  }
+});
+
+// Actualizar incidencia
+app.put('/incidencias/:id', requireJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      titulo, descripcion, idEstadoIncidencia, idTipoIncidencia,
+      idTecnicoAsignado, prioridad, comentarios_cierre
+    } = req.body;
+
+    // Construir la consulta dinámicamente basada en los campos proporcionados
+    let updateFields = [];
+    let params = [];
+
+    if (titulo !== undefined) {
+      updateFields.push('titulo = ?');
+      params.push(titulo);
+    }
+    if (descripcion !== undefined) {
+      updateFields.push('descripcion = ?');
+      params.push(descripcion);
+    }
+    if (idEstadoIncidencia !== undefined) {
+      updateFields.push('idEstadoIncidencia = ?');
+      params.push(idEstadoIncidencia);
+    }
+    if (idTipoIncidencia !== undefined) {
+      updateFields.push('idTipoIncidencia = ?');
+      params.push(idTipoIncidencia);
+    }
+    if (idTecnicoAsignado !== undefined) {
+      updateFields.push('idTecnicoAsignado = ?');
+      params.push(idTecnicoAsignado);
+    }
+    if (prioridad !== undefined) {
+      updateFields.push('prioridad = ?');
+      params.push(prioridad);
+    }
+    if (comentarios_cierre !== undefined) {
+      updateFields.push('comentarios_cierre = ?');
+      params.push(comentarios_cierre);
+    }
+
+    // Siempre actualizar la fecha de modificación
+    updateFields.push('fecha_actualizacion = CURRENT_TIMESTAMP');
+
+    if (updateFields.length === 0) {
+      res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
+      return;
+    }
+
+    params.push(id);
+
+    const query = `UPDATE Incidencia SET ${updateFields.join(', ')} WHERE idIncidencia = ?`;
+    
+    await execute(query, params);
+
+    res.json({ message: 'Incidencia actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar incidencia:', error);
+    res.status(500).json({ error: 'Error al actualizar incidencia' });
+  }
+});
+
+// Agregar entrada al historial de incidencia
+app.post('/incidencias/:id/historial', requireJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { idEstadoNuevo, comentario } = req.body;
+    const usuarioId = req.headers['usuario-id'];
+
+    // Obtener estado actual de la incidencia
+    const incidencias = await query(
+      'SELECT idEstadoIncidencia FROM Incidencia WHERE idIncidencia = ?',
+      [id]
+    );
+
+    if (incidencias.length === 0) {
+      res.status(404).json({ error: 'Incidencia no encontrada' });
+      return;
+    }
+
+    const idEstadoAnterior = incidencias[0].idEstadoIncidencia;
+
+    const result = await execute(`
+      INSERT INTO HistorialIncidencia 
+      (idIncidencia, idEstadoAnterior, idEstadoNuevo, idUsuarioCambio, comentario)
+      VALUES (?, ?, ?, ?, ?)
+    `, [id, idEstadoAnterior, idEstadoNuevo, usuarioId, comentario]);
+
+    res.status(201).json({ 
+      message: 'Historial agregado correctamente', 
+      id: result.insertId 
+    });
+  } catch (error) {
+    console.error('Error al agregar historial:', error);
+    res.status(500).json({ error: 'Error al agregar historial' });
+  }
+});
+
+// Obtener técnicos (usuarios con tipo Técnico)
+app.get('/tecnicos', async (_req, res) => {
+  try {
+    const tecnicos = await query(`
+      SELECT u.*, t.nombre as tipo_usuario_nombre, d.nombre as departamento_nombre
+      FROM Usuario u
+      LEFT JOIN TipoUsuario t ON u.idTipoUsuario = t.idTipoUsuario
+      LEFT JOIN Departamento d ON u.idDepartamento = d.idDepartamento
+      WHERE t.nombre = 'Técnico' AND u.activo = 1
+      ORDER BY u.nombre, u.apellidoPat
+    `);
+    
+    const tecnicosSinPassword = tecnicos.map((tecnico: any) => {
+      const { password, ...tecnicoSinPassword } = tecnico;
+      return tecnicoSinPassword;
+    });
+    
+    res.json(tecnicosSinPassword);
+  } catch (error) {
+    console.error('Error al obtener técnicos:', error);
+    res.status(500).json({ error: 'Error al obtener técnicos' });
+  }
+});
+
 // Ruta de prueba
 app.get('/hola', (_req, res) => {
     res.send('Hola Mundo desde el sistema de incidencias');

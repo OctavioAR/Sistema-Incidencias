@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { AxiosResponse } from "axios";
 import type { Usuario } from "../../auth/api/tipos";
 
 const usuariosAPI = axios.create({
@@ -55,7 +56,7 @@ export const usuariosService = {
   // Crear nuevo usuario
   crearUsuario: (usuario: CrearUsuarioRequest) =>
     usuariosAPI.post('/usuarios', usuario),
-  
+
   // Actualizar usuario
   actualizarUsuario: (id: number, usuario: ActualizarUsuarioRequest) =>
     usuariosAPI.put(`/usuarios/${id}`, usuario),
@@ -69,7 +70,11 @@ export const usuariosService = {
     usuariosAPI.put(`/usuarios/${id}/estado`, { activo }),
 
   eliminarUsuarioPermanente: (id: number) =>
-    usuariosAPI.delete(`/usuarios/${id}/fisica`)
+    usuariosAPI.delete(`/usuarios/${id}/fisica`),
+
+  obtenerTecnicos: (): Promise<AxiosResponse<UsuarioCompleto[]>> =>
+    usuariosAPI.get<UsuarioCompleto[]>('/tecnicos'),
+
 };
 
 export default usuariosAPI;
