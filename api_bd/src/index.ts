@@ -5,7 +5,7 @@ import { query, execute } from './database';
 const app = express();
 const PUERTO = 3001;
 
-const requireJefeTaller = (req: any, res: any, next: any) => {
+const requireTecnicoOJefeTaller = (req: any, res: any, next: any) => {
   const usuarioId = req.headers['usuario-id'] || req.query.usuarioId;
   
   if (!usuarioId) {
@@ -22,12 +22,20 @@ const requireJefeTaller = (req: any, res: any, next: any) => {
         WHERE u.idUsuario = ? AND u.activo = 1
       `, [usuarioId]);
       
-      if (usuarios.length === 0 || usuarios[0].tipo_usuario !== 'Jefe de Taller') {
+      if (usuarios.length === 0) {
+        res.status(403).json({ error: 'Usuario no encontrado o inactivo' });
+        return;
+      }
+      
+      const usuario = usuarios[0];
+      
+      // Permitir tanto Jefe de Taller como Técnico
+      if (usuario.tipo_usuario !== 'Jefe de Taller' && usuario.tipo_usuario !== 'Técnico') {
         res.status(403).json({ error: 'No tienes permisos para realizar esta acción' });
         return;
       }
       
-      req.usuario = usuarios[0];
+      req.usuario = usuario;
       next();
     } catch (error) {
       res.status(500).json({ error: 'Error al verificar permisos' });
@@ -36,6 +44,7 @@ const requireJefeTaller = (req: any, res: any, next: any) => {
   
   verificarPermisos();
 };
+
 
 app.use(cors());
 app.use(express.json());
@@ -51,7 +60,7 @@ app.get('/edificios', async (_req, res) => {
   }
 });
 
-app.post('/edificios', requireJefeTaller, async (req, res) => {
+app.post('/edificios', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { codigo, nombre } = req.body;
     
@@ -69,7 +78,7 @@ app.post('/edificios', requireJefeTaller, async (req, res) => {
   }
 });
 
-app.put('/edificios/:id', requireJefeTaller, async (req, res) => {
+app.put('/edificios/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const { codigo, nombre } = req.body;
@@ -85,7 +94,7 @@ app.put('/edificios/:id', requireJefeTaller, async (req, res) => {
   }
 });
 
-app.delete('/edificios/:id', requireJefeTaller, async (req, res) => {
+app.delete('/edificios/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -112,7 +121,7 @@ app.get('/aulas', async (_req, res) => {
   }
 });
 
-app.post('/aulas', requireJefeTaller, async (req, res) => {
+app.post('/aulas', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { codigo, nombre, idEdificio } = req.body;
     
@@ -130,7 +139,7 @@ app.post('/aulas', requireJefeTaller, async (req, res) => {
   }
 });
 
-app.put('/aulas/:id', requireJefeTaller, async (req, res) => {
+app.put('/aulas/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const { codigo, nombre, idEdificio } = req.body;
@@ -146,7 +155,7 @@ app.put('/aulas/:id', requireJefeTaller, async (req, res) => {
   }
 });
 
-app.delete('/aulas/:id', requireJefeTaller, async (req, res) => {
+app.delete('/aulas/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -174,7 +183,7 @@ app.get('/departamentos', async (_req, res) => {
   }
 });
 
-app.post('/departamentos', requireJefeTaller, async (req, res) => {
+app.post('/departamentos', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { nombre, idEdificio, idAula } = req.body;
     
@@ -192,7 +201,7 @@ app.post('/departamentos', requireJefeTaller, async (req, res) => {
   }
 });
 
-app.put('/departamentos/:id', requireJefeTaller, async (req, res) => {
+app.put('/departamentos/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, idEdificio, idAula } = req.body;
@@ -208,7 +217,7 @@ app.put('/departamentos/:id', requireJefeTaller, async (req, res) => {
   }
 });
 
-app.delete('/departamentos/:id', requireJefeTaller, async (req, res) => {
+app.delete('/departamentos/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -245,7 +254,7 @@ app.get('/equipos', async (_req, res) => {
 });
 
 // Crear nuevo equipo
-app.post('/equipos', requireJefeTaller, async (req, res) => {
+app.post('/equipos', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const {
       codigo, nombre, marca, modelo, noSerie, idTipoEquipo,
@@ -276,7 +285,7 @@ app.post('/equipos', requireJefeTaller, async (req, res) => {
 });
 
 // Actualizar equipo
-app.put('/equipos/:id', requireJefeTaller, async (req, res) => {
+app.put('/equipos/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -307,7 +316,7 @@ app.put('/equipos/:id', requireJefeTaller, async (req, res) => {
 });
 
 // Eliminar equipo
-app.delete('/equipos/:id', requireJefeTaller, async (req, res) => {
+app.delete('/equipos/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     await execute('DELETE FROM Equipo WHERE idEquipo = ?', [id]);
@@ -348,7 +357,7 @@ app.post('/software', async (req, res) => {
 });
 
 // Actualizar software
-app.put('/software/:id', requireJefeTaller, async (req, res) => {
+app.put('/software/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, version, fabricante, tipoLicencia, fechaExpiracionLicencia, requiereActivacion, comentarios } = req.body;
@@ -367,7 +376,7 @@ app.put('/software/:id', requireJefeTaller, async (req, res) => {
 });
 
 // Eliminar software
-app.delete('/software/:id', requireJefeTaller, async (req, res) => {
+app.delete('/software/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     await execute('DELETE FROM Software WHERE idSoftware = ?', [id]);
@@ -508,7 +517,7 @@ app.get('/contratos', async (_req, res) => {
 });
 
 // Actualizar contrato
-app.put('/contratos/:id', requireJefeTaller, async (req, res) => {
+app.put('/contratos/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -534,7 +543,7 @@ app.put('/contratos/:id', requireJefeTaller, async (req, res) => {
 });
 
 // Eliminar contrato
-app.delete('/contratos/:id', requireJefeTaller, async (req, res) => {
+app.delete('/contratos/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     await execute('DELETE FROM ContratoMantenimiento WHERE idContrato = ?', [id]);
@@ -714,7 +723,7 @@ app.get('/usuarios', async (_req, res) => {
   }
 });
 
-app.post('/usuarios', requireJefeTaller, async (req, res) => {
+app.post('/usuarios', requireTecnicoOJefeTaller, async (req, res) => {
     try {
         const { 
             nombre, 
@@ -756,7 +765,7 @@ app.post('/usuarios', requireJefeTaller, async (req, res) => {
 });
 
 // Actualizar usuario
-app.put('/usuarios/:id', requireJefeTaller, async (req, res) => {
+app.put('/usuarios/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -793,7 +802,7 @@ app.put('/usuarios/:id', requireJefeTaller, async (req, res) => {
 });
 
 // Cambiar password de usuario
-app.put('/usuarios/:id/password', requireJefeTaller, async (req, res) => {
+app.put('/usuarios/:id/password', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const { password } = req.body;
@@ -814,7 +823,7 @@ app.put('/usuarios/:id/password', requireJefeTaller, async (req, res) => {
 });
 
 // Desactivar/activar usuario
-app.put('/usuarios/:id/estado', requireJefeTaller, async (req, res) => {
+app.put('/usuarios/:id/estado', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const { activo } = req.body;
@@ -830,7 +839,7 @@ app.put('/usuarios/:id/estado', requireJefeTaller, async (req, res) => {
   }
 });
 
-app.delete('/usuarios/:id/fisica', requireJefeTaller, async (req, res) => {
+app.delete('/usuarios/:id/fisica', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -1043,7 +1052,7 @@ app.get('/usuarios/:id/incidencias', async (req, res) => {
 });
 
 // Actualizar incidencia
-app.put('/incidencias/:id', requireJefeTaller, async (req, res) => {
+app.put('/incidencias/:id', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1106,7 +1115,7 @@ app.put('/incidencias/:id', requireJefeTaller, async (req, res) => {
 });
 
 // Agregar entrada al historial de incidencia
-app.post('/incidencias/:id/historial', requireJefeTaller, async (req, res) => {
+app.post('/incidencias/:id/historial', requireTecnicoOJefeTaller, async (req, res) => {
   try {
     const { id } = req.params;
     const { idEstadoNuevo, comentario } = req.body;
@@ -1141,6 +1150,31 @@ app.post('/incidencias/:id/historial', requireJefeTaller, async (req, res) => {
   }
 });
 
+// Obtener historial de incidencia
+app.get('/incidencias/:id/historial', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const historial = await query(`
+      SELECT h.*, 
+             ea.nombre as estado_anterior_nombre,
+             en.nombre as estado_nuevo_nombre,
+             CONCAT(u.nombre, ' ', u.apellidoPat) as usuario_cambio_nombre,
+             t.nombre as tipo_usuario_cambio
+      FROM HistorialIncidencia h
+      LEFT JOIN EstadoIncidencia ea ON h.idEstadoAnterior = ea.idEstadoIncidencia
+      LEFT JOIN EstadoIncidencia en ON h.idEstadoNuevo = en.idEstadoIncidencia
+      LEFT JOIN Usuario u ON h.idUsuarioCambio = u.idUsuario
+      LEFT JOIN TipoUsuario t ON u.idTipoUsuario = t.idTipoUsuario
+      WHERE h.idIncidencia = ?
+      ORDER BY h.fecha_cambio ASC
+    `, [id]);
+    res.json(historial);
+  } catch (error) {
+    console.error('Error al obtener historial:', error);
+    res.status(500).json({ error: 'Error al obtener historial' });
+  }
+});
+
 // Obtener técnicos (usuarios con tipo Técnico)
 app.get('/tecnicos', async (_req, res) => {
   try {
@@ -1162,6 +1196,34 @@ app.get('/tecnicos', async (_req, res) => {
   } catch (error) {
     console.error('Error al obtener técnicos:', error);
     res.status(500).json({ error: 'Error al obtener técnicos' });
+  }
+});
+// Obtener incidencias asignadas a un técnico
+app.get('/tecnicos/:id/incidencias', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const incidencias = await query(`
+      SELECT i.*, 
+             e.nombre as estado_nombre,
+             t.nombre as tipo_incidencia_nombre,
+             CONCAT(u.nombre, ' ', u.apellidoPat) as usuario_reporta_nombre,
+             CONCAT(ut.nombre, ' ', ut.apellidoPat) as tecnico_asignado_nombre,
+             eq.nombre as equipo_nombre,
+             d.nombre as departamento_nombre
+      FROM Incidencia i
+      LEFT JOIN EstadoIncidencia e ON i.idEstadoIncidencia = e.idEstadoIncidencia
+      LEFT JOIN TipoIncidencia t ON i.idTipoIncidencia = t.idTipoIncidencia
+      LEFT JOIN Usuario u ON i.idUsuarioReporta = u.idUsuario
+      LEFT JOIN Usuario ut ON i.idTecnicoAsignado = ut.idUsuario
+      LEFT JOIN Equipo eq ON i.idEquipo = eq.idEquipo
+      LEFT JOIN Departamento d ON i.idDepartamento = d.idDepartamento
+      WHERE i.idTecnicoAsignado = ?
+      ORDER BY i.fecha_creacion DESC
+    `, [id]);
+    res.json(incidencias);
+  } catch (error) {
+    console.error('Error al obtener incidencias del técnico:', error);
+    res.status(500).json({ error: 'Error al obtener incidencias del técnico' });
   }
 });
 

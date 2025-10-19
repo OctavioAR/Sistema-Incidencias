@@ -100,6 +100,10 @@ export const incidenciasService = {
   // Agregar entrada al historial
   agregarHistorial: (idIncidencia: number, datos: { idEstadoNuevo: number; comentario?: string }): Promise<AxiosResponse<any>> =>
     incidenciasAPI.post(`/incidencias/${idIncidencia}/historial`, datos),
+
+    // Obtener incidencias asignadas a un técnico
+  obtenerIncidenciasPorTecnico: (idTecnico: number): Promise<AxiosResponse<Incidencia[]>> =>
+    incidenciasAPI.get<Incidencia[]>(`/tecnicos/${idTecnico}/incidencias`),
 };
 
 export default incidenciasAPI;

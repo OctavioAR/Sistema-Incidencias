@@ -6,6 +6,15 @@
         <button @click="mostrarModalReportar" class="btn-primary">
           {{ esJefeTaller ? '➕ Nueva Incidencia' : '➕Reportar Incidencia' }}
         </button>
+                <!-- Botón para técnicos -->
+        <button
+          v-if="esTecnico"
+          @click="irVistaTecnico"
+          class="btn-primary"
+          style="margin-left: 10px;"
+        >
+          👨‍🔧 Ir a Incidencias Técnicas
+        </button>
       </div>
     </div>
     
@@ -392,6 +401,84 @@
           </form>
         </div>
       </div>
+
+      <!-- MODAL CAMBIAR ESTADO -->
+      <div v-if="modalCambiarEstado.mostrar" class="modal-overlay" @click.self="cerrarCambiarEstado">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Cambiar Estado - Incidencia #{{ modalCambiarEstado.incidencia?.idIncidencia }}</h3>
+            <button @click="cerrarCambiarEstado" class="btn-cerrar">×</button>
+          </div>
+          
+          <form @submit.prevent="confirmarCambioEstado" class="modal-body">
+            <div class="form-section">
+              <div class="info-incidencia">
+                <p><strong>Título:</strong> {{ modalCambiarEstado.incidencia?.titulo }}</p>
+                <p><strong>Estado actual:</strong> 
+                  <span class="badge-estado" :class="getClaseEstado(modalCambiarEstado.incidencia?.estado_nombre)">
+                    {{ modalCambiarEstado.incidencia?.estado_nombre }}
+                  </span>
+                </p>
+              </div>
+
+              <div class="form-group">
+                <label for="nuevoEstado">Nuevo Estado *</label>
+                <select 
+                  id="nuevoEstado"
+                  v-model="formularioCambioEstado.idEstadoNuevo" 
+                  required
+                  class="form-select"
+                >
+                  <option value="">Seleccionar estado...</option>
+                  <option 
+                    v-for="estado in estadosDisponibles" 
+                    :key="estado.idEstadoIncidencia" 
+                    :value="estado.idEstadoIncidencia"
+                    :disabled="estado.idEstadoIncidencia === modalCambiarEstado.incidencia?.idEstadoIncidencia"
+                  >
+                    {{ estado.nombre }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="comentarioEstado">Comentario (Opcional)</label>
+                <textarea 
+                  id="comentarioEstado"
+                  v-model="formularioCambioEstado.comentario" 
+                  rows="4"
+                  placeholder="Agregar comentario sobre el cambio de estado..."
+                  class="form-textarea"
+                ></textarea>
+                <small>{{ formularioCambioEstado.comentario?.length || 0 }}/500 caracteres</small>
+              </div>
+
+              <!-- Información del estado seleccionado -->
+              <div v-if="estadoSeleccionado" class="estado-info">
+                <h4>Información del Estado Seleccionado</h4>
+                <div class="detalle-item">
+                  <label>Estado:</label>
+                  <span class="badge-estado" :class="getClaseEstado(estadoSeleccionado.nombre)">
+                    {{ estadoSeleccionado.nombre }}
+                  </span>
+                </div>
+                <div class="detalle-item">
+                  <label>Descripción:</label>
+                  <span>{{ estadoSeleccionado.descripcion || 'Sin descripción' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" @click="cerrarCambiarEstado" class="btn-secondary">Cancelar</button>
+              <button type="submit" :disabled="cargandoCambioEstado || !formularioCambioEstado.idEstadoNuevo" class="btn-primary">
+                {{ cargandoCambioEstado ? 'Cambiando...' : ' Cambiar Estado' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
     </div>
 
     <!-- PARA USUARIOS NO JEFE DE TALLER: MOSTRAR SOLO EL FORMULARIO -->
@@ -463,6 +550,7 @@ import { equiposService, type Equipo } from '../../configuracion/api/equiposAPI'
 import { ubicacionesService, type Departamento } from '../../configuracion/api/ubicacionesAPI';
 import { usuariosService, type UsuarioCompleto } from '../../configuracion/api/usuariosAPI';
 import ModalReportarIncidencia from '../componentes/ModalReportarIncidencia.vue';
+import TecnicoIncidenciasView from './TecnicoIncidenciasView.vue'; // Importa la vista de técnico
 
 const router = useRouter();
 const cargando = ref(false);
@@ -518,6 +606,16 @@ const esJefeTaller = computed(() => {
   return usuarioActual.value.tipo_usuario_nombre === 'Jefe de Taller';
 });
 
+// Computed para verificar si es Técnico
+const esTecnico = computed(() => {
+  return usuarioActual.value.tipo_usuario_nombre === 'Técnico';
+});
+
+// Función para navegar a la vista de técnico
+const irVistaTecnico = () => {
+  router.push({ name: 'TecnicoIncidencias' }); 
+};
+
 // Computed para mostrar solo las incidencias del usuario actual (para no jefes)
 const misIncidencias = computed(() => {
   if (esJefeTaller.value) return [];
@@ -546,6 +644,109 @@ const tecnicoSeleccionado = computed(() => {
   return tecnicosDisponibles.value.find(t => t.idUsuario === formularioAsignacion.value.idTecnico) || null;
 });
 
+// Estados para el modal de cambiar estado
+const modalCambiarEstado = ref({
+  mostrar: false,
+  incidencia: null as Incidencia | null
+});
+
+// Formulario para cambio de estado
+const formularioCambioEstado = ref({
+  idEstadoNuevo: null as number | null,
+  comentario: ''
+});
+
+const cargandoCambioEstado = ref(false);
+
+// Computed para estados disponibles (excluyendo el estado actual)
+const estadosDisponibles = computed(() => {
+  if (!modalCambiarEstado.value.incidencia) return estadosIncidencia.value;
+  
+  return estadosIncidencia.value.filter(estado => 
+    estado.idEstadoIncidencia !== modalCambiarEstado.value.incidencia?.idEstadoIncidencia
+  );
+});
+
+// Computed para el estado seleccionado
+const estadoSeleccionado = computed(() => {
+  if (!formularioCambioEstado.value.idEstadoNuevo) return null;
+  return estadosIncidencia.value.find(e => e.idEstadoIncidencia === formularioCambioEstado.value.idEstadoNuevo) || null;
+});
+
+// Funciones para abrir/cerrar modal de cambio de estado
+const cambiarEstado = (incidencia: Incidencia) => {
+  modalCambiarEstado.value = {
+    mostrar: true,
+    incidencia: incidencia
+  };
+  // Resetear formulario
+  formularioCambioEstado.value = {
+    idEstadoNuevo: null,
+    comentario: ''
+  };
+};
+
+const cerrarCambiarEstado = () => {
+  modalCambiarEstado.value.mostrar = false;
+  formularioCambioEstado.value = {
+    idEstadoNuevo: null,
+    comentario: ''
+  };
+};
+
+// Función principal para confirmar cambio de estado
+const confirmarCambioEstado = async () => {
+  if (!modalCambiarEstado.value.incidencia?.idIncidencia || !formularioCambioEstado.value.idEstadoNuevo) return;
+
+  cargandoCambioEstado.value = true;
+  try {
+    const incidenciaId = modalCambiarEstado.value.incidencia.idIncidencia!;
+    const nuevoEstadoId = formularioCambioEstado.value.idEstadoNuevo;
+
+    // 1. Actualizar el estado de la incidencia
+    const datosActualizacion: ActualizarIncidenciaRequest = {
+      idEstadoIncidencia: nuevoEstadoId
+    };
+
+    await incidenciasService.actualizarIncidencia(incidenciaId, datosActualizacion);
+
+    // 2. Agregar entrada al historial
+    const estadoNuevo = estadosIncidencia.value.find(e => e.idEstadoIncidencia === nuevoEstadoId);
+    const estadoAnterior = modalCambiarEstado.value.incidencia.estado_nombre;
+    
+    const comentario = formularioCambioEstado.value.comentario || 
+      `Estado cambiado de "${estadoAnterior}" a "${estadoNuevo?.nombre}"`;
+
+    await incidenciasService.agregarHistorial(incidenciaId, {
+      idEstadoNuevo: nuevoEstadoId,
+      comentario: comentario
+    });
+
+    // 3. Si el estado es "Cerrado", actualizar la fecha de cierre
+    if (nuevoEstadoId === 7) { // ID 7 = Cerrado
+      // Actualizar la incidencia con la fecha de cierre y todos los campos requeridos
+      const incidenciaActual = modalCambiarEstado.value.incidencia;
+      await incidenciasService.actualizarIncidencia(incidenciaId, {
+        titulo: incidenciaActual.titulo,
+        descripcion: incidenciaActual.descripcion,
+        idEstadoIncidencia: nuevoEstadoId,
+        idTipoIncidencia: incidenciaActual.idTipoIncidencia,
+        idTecnicoAsignado: incidenciaActual.idTecnicoAsignado,
+        prioridad: incidenciaActual.prioridad
+      });
+    }
+
+    alert('Estado cambiado correctamente');
+    cerrarCambiarEstado();
+    cargarDatos(); // Recargar datos para ver los cambios
+  } catch (error: any) {
+    console.error('Error al cambiar estado:', error);
+    alert('Error al cambiar estado: ' + (error.response?.data?.error || error.message));
+  } finally {
+    cargandoCambioEstado.value = false;
+  }
+};
+
 // Datos estáticos para tipos y estados (deberían venir de la API)
 const tiposIncidencia = ref([
   { idTipoIncidencia: 1, nombre: 'Mantenimiento Correctivo' },
@@ -556,13 +757,13 @@ const tiposIncidencia = ref([
 ]);
 
 const estadosIncidencia = ref([
-  { idEstadoIncidencia: 1, nombre: 'Enviado' },
-  { idEstadoIncidencia: 2, nombre: 'Revisión Jefe' },
-  { idEstadoIncidencia: 3, nombre: 'Rechazado' },
-  { idEstadoIncidencia: 4, nombre: 'Asignado' },
-  { idEstadoIncidencia: 5, nombre: 'En Proceso' },
-  { idEstadoIncidencia: 6, nombre: 'Liberado' },
-  { idEstadoIncidencia: 7, nombre: 'Cerrado' }
+  { idEstadoIncidencia: 1, nombre: 'Enviado', descripcion: 'Incidencia enviada y pendiente de revisión.' },
+  { idEstadoIncidencia: 2, nombre: 'Revisión Jefe', descripcion: 'Incidencia en revisión por el jefe de taller.' },
+  { idEstadoIncidencia: 3, nombre: 'Rechazado', descripcion: 'Incidencia rechazada por el jefe de taller.' },
+  { idEstadoIncidencia: 4, nombre: 'Asignado', descripcion: 'Incidencia asignada a un técnico.' },
+  { idEstadoIncidencia: 5, nombre: 'En Proceso', descripcion: 'Incidencia en proceso de resolución.' },
+  { idEstadoIncidencia: 6, nombre: 'Liberado', descripcion: 'Incidencia liberada y lista para cierre.' },
+  { idEstadoIncidencia: 7, nombre: 'Cerrado', descripcion: 'Incidencia cerrada y finalizada.' }
 ]);
 
 const incidenciasFiltradas = computed(() => {
@@ -727,11 +928,11 @@ const cerrarEditar = () => {
   };
 };
 
-const cambiarEstado = (incidencia: Incidencia) => {
+/* const cambiarEstado = (incidencia: Incidencia) => {
   // Implementar cambio de estado
   console.log('Cambiar estado de:', incidencia);
   alert('Funcionalidad de cambio de estado en desarrollo');
-};
+}; */
 
 // Funciones de negocio
 const cargarHistorial = async (idIncidencia: number) => {
@@ -756,7 +957,8 @@ const confirmarAsignacion = async () => {
       idEstadoIncidencia: 4, 
       idTipoIncidencia: incidenciaActual.idTipoIncidencia,
       idTecnicoAsignado: formularioAsignacion.value.idTecnico,
-      prioridad: incidenciaActual.prioridad
+      prioridad: incidenciaActual.prioridad,
+      // fecha_cierre: incidenciaActual.fecha_cierre || null
     };
 
     console.log('Enviando datos de actualización:', datosActualizacion);
@@ -1374,6 +1576,36 @@ onMounted(() => {
   border-radius: 6px;
   border: 1px solid #bae6fd;
   margin-bottom: 20px;
+}
+
+.btn-estado {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  margin: 0 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.btn-estado:hover {
+  background: #d97706;
+}
+
+.estado-info {
+  background: #f8fafc;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  margin-top: 20px;
+}
+
+.estado-info h4 {
+  margin: 0 0 15px 0;
+  color: #374151;
+  font-size: 14px;
 }
 
 .tecnico-info {
