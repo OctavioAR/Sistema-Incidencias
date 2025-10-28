@@ -6,7 +6,7 @@
         <button @click="mostrarModalReportar" class="btn-primary">
           {{ esJefeTaller ? '➕ Nueva Incidencia' : '➕Reportar Incidencia' }}
         </button>
-                <!-- Botón para técnicos -->
+        <!-- Botón para técnicos -->
         <button
           v-if="esTecnico"
           @click="irVistaTecnico"
@@ -239,7 +239,7 @@
 
       <!-- MODAL ASIGNAR TÉCNICO -->
       <div v-if="modalAsignarTecnico.mostrar" class="modal-overlay" @click.self="cerrarAsignarTecnico">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 900px;">
           <div class="modal-header">
             <h3>Asignar Técnico a Incidencia #{{ modalAsignarTecnico.incidencia?.idIncidencia }}</h3>
             <button @click="cerrarAsignarTecnico" class="btn-cerrar">×</button>
@@ -249,15 +249,52 @@
             <div class="form-section">
               <div class="info-incidencia">
                 <p><strong>Título:</strong> {{ modalAsignarTecnico.incidencia?.titulo }}</p>
-                <p><strong>Reportado por:</strong> {{ modalAsignarTecnico.incidencia?.usuario_reporta_nombre }}</p>
+                <p><strong>Tipo:</strong> {{ modalAsignarTecnico.incidencia?.tipo_incidencia_nombre }}</p>
+                <p><strong>Prioridad:</strong> 
+                  <span class="badge-prioridad" :class="modalAsignarTecnico.incidencia?.prioridad">
+                    {{ getTextoPrioridad(modalAsignarTecnico.incidencia?.prioridad || 'media') }}
+                  </span>
+                </p>
               </div>
 
+              <!-- Técnicos recomendados -->
+              <div class="tecnicos-recomendados" v-if="tecnicosRecomendados.length > 0">
+                <h4>🏆 Técnicos Recomendados</h4>
+                <div class="recomendaciones-list">
+                  <div v-for="tecnico in tecnicosRecomendadosUnicos" :key="tecnico.idUsuario" 
+                      class="tecnico-card" :class="{ 'recomendado': tecnico.puntaje_compatibilidad >= 80 }"
+                      @click="seleccionarTecnico(tecnico.idUsuario)">
+                    <div class="tecnico-header">
+                      <span class="tecnico-nombre">{{ tecnico.nombre }} {{ tecnico.apellidoPat }}</span>
+                      <span class="puntaje" :class="getClasePuntaje(tecnico.puntaje_compatibilidad)">
+                        {{ tecnico.puntaje_compatibilidad }}%
+                      </span>
+                    </div>
+                    <div class="tecnico-info">
+                      <span class="especialidad">{{ tecnico.especialidad_nombre || 'Sin especialidad' }}</span>
+                      <span class="nivel" :class="tecnico.nivel_expertise">{{ tecnico.nivel_expertise }}</span>
+                    </div>
+                    <div class="tecnico-stats">
+                      <span class="carga" :class="getClaseCarga(tecnico.incidencias_activas)">
+                        {{ tecnico.incidencias_activas }} incidencias activas
+                      </span>
+                    </div>
+                    <div class="tecnico-action">
+                      <button type="button" class="btn-seleccionar" 
+                              :class="{ 'selected': formularioAsignacion.idTecnico === tecnico.idUsuario }">
+                        {{ formularioAsignacion.idTecnico === tecnico.idUsuario ? '✓ Seleccionado' : 'Seleccionar' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Selección manual -->
               <div class="form-group">
-                <label for="idTecnico">Seleccionar Técnico *</label>
+                <label for="idTecnico">O seleccionar técnico manualmente:</label>
                 <select 
                   id="idTecnico"
                   v-model="formularioAsignacion.idTecnico" 
-                  required
                   class="form-select"
                 >
                   <option value="">Seleccionar técnico...</option>
@@ -267,7 +304,8 @@
                     :value="tecnico.idUsuario"
                   >
                     {{ tecnico.nombre }} {{ tecnico.apellidoPat }} 
-                    ({{ tecnico.incidenciasAsignadas }} incidencias)
+                    - {{ tecnico.especialidad_nombre || 'Sin especialidad' }} 
+                    ({{ tecnico.incidencias_activas }} activas)
                   </option>
                 </select>
               </div>
@@ -283,37 +321,12 @@
                 ></textarea>
                 <small>{{ formularioAsignacion.comentario?.length || 0 }}/500 caracteres</small>
               </div>
-
-              <!-- Información del técnico seleccionado -->
-              <div v-if="tecnicoSeleccionado" class="tecnico-info">
-                <h4>Información del Técnico Seleccionado</h4>
-                <div class="detalles-grid">
-                  <div class="detalle-item">
-                    <label>Nombre:</label>
-                    <span>{{ tecnicoSeleccionado.nombre }} {{ tecnicoSeleccionado.apellidoPat }}</span>
-                  </div>
-                  <div class="detalle-item">
-                    <label>Email:</label>
-                    <span>{{ tecnicoSeleccionado.email }}</span>
-                  </div>
-                  <div class="detalle-item">
-                    <label>Departamento:</label>
-                    <span>{{ tecnicoSeleccionado.departamento_nombre || 'No asignado' }}</span>
-                  </div>
-                  <div class="detalle-item">
-                    <label>Incidencias activas:</label>
-                    <span :class="getClaseCarga(tecnicoSeleccionado.incidenciasAsignadas)">
-                      {{ tecnicoSeleccionado.incidenciasAsignadas }}
-                    </span>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <div class="form-actions">
               <button type="button" @click="cerrarAsignarTecnico" class="btn-secondary">Cancelar</button>
               <button type="submit" :disabled="cargandoAsignacion || !formularioAsignacion.idTecnico" class="btn-primary">
-                {{ cargandoAsignacion ? 'Asignando...' : 'Asignar Técnico' }}
+                {{ cargandoAsignacion ? 'Asignando...' : ' Asignar Técnico' }}
               </button>
             </div>
           </form>
@@ -442,7 +455,7 @@
               </div>
 
               <div class="form-group">
-                <label for="comentarioEstado">Comentario (Opcional)</label>
+                <label for="comentarioEstado">Ficha Técnica</label>
                 <textarea 
                   id="comentarioEstado"
                   v-model="formularioCambioEstado.comentario" 
@@ -550,7 +563,7 @@ import { equiposService, type Equipo } from '../../configuracion/api/equiposAPI'
 import { ubicacionesService, type Departamento } from '../../configuracion/api/ubicacionesAPI';
 import { usuariosService, type UsuarioCompleto } from '../../configuracion/api/usuariosAPI';
 import ModalReportarIncidencia from '../componentes/ModalReportarIncidencia.vue';
-import TecnicoIncidenciasView from './TecnicoIncidenciasView.vue'; // Importa la vista de técnico
+import TecnicoIncidenciasView from './TecnicoIncidenciasView.vue';
 
 const router = useRouter();
 const cargando = ref(false);
@@ -558,12 +571,107 @@ const incidencias = ref<Incidencia[]>([]);
 const equipos = ref<Equipo[]>([]);
 const departamentos = ref<Departamento[]>([]);
 const tecnicos = ref<UsuarioCompleto[]>([]);
+const tecnicosRecomendados = ref<any[]>([]); // si tu API devuelve recomendados
 const historialIncidencia = ref<HistorialIncidencia[]>([]);
-const usuarioActual = ref(JSON.parse(localStorage.getItem('usuario') || '{}'));
+const cargandoRecomendaciones = ref(false);
 
-const filtroEstado = ref('');
-const filtroPrioridad = ref('');
-const terminoBusqueda = ref('');
+// filtros y búsqueda
+const filtroEstado = ref<number | string>('');
+const filtroPrioridad = ref<string>('');
+const terminoBusqueda = ref<string>('');
+
+// Información del usuario actual (se usa en la plantilla para saludo y en computed para permisos)
+const usuarioActual = ref<UsuarioCompleto>({ idUsuario: 0, nombre: 'Usuario', tipo_usuario_nombre: '' } as UsuarioCompleto);
+
+// Helper: elimina duplicados por idUsuario y fusiona datos relevantes
+const dedupeTecnicos = (lista: any[]) => {
+  const mapa = new Map<number, any>();
+  lista.forEach(t => {
+    if (!t || typeof t.idUsuario !== 'number') return;
+    const existente = mapa.get(t.idUsuario);
+    if (existente) {
+      existente.puntaje_compatibilidad = Math.max(existente.puntaje_compatibilidad ?? 0, t.puntaje_compatibilidad ?? 0);
+      existente.incidencias_activas = Math.min(
+        (existente.incidencias_activas ?? Number.MAX_SAFE_INTEGER),
+        (t.incidencias_activas ?? existente.incidencias_activas ?? 0)
+      );
+      existente.especialidades = Array.from(new Set([...(existente.especialidades || []), ...(t.especialidades || [])]));
+    } else {
+      mapa.set(t.idUsuario, { ...t });
+    }
+  });
+  return Array.from(mapa.values());
+};
+
+// Lista de técnicos disponibles (sin duplicados) ordenada por carga
+const tecnicosDisponibles = computed(() => {
+  const lista = tecnicos.value.map(tecnico => {
+    const incidenciasAsignadas = incidencias.value.filter(
+      inc => inc.idTecnicoAsignado === tecnico.idUsuario && !inc.fecha_cierre
+    ).length;
+    return {
+      ...tecnico,
+      incidencias_activas: incidenciasAsignadas
+    };
+  });
+  return dedupeTecnicos(lista).sort((a, b) => (a.incidencias_activas ?? 0) - (b.incidencias_activas ?? 0));
+});
+
+// Técnicos recomendados (si la API devuelve recomendaciones por especialidad)
+// se devuelven sin duplicados y ordenados por puntaje de compatibilidad
+const tecnicosRecomendadosUnicos = computed(() => {
+  return dedupeTecnicos(tecnicosRecomendados.value).sort((a, b) => (b.puntaje_compatibilidad ?? 0) - (a.puntaje_compatibilidad ?? 0));
+});
+
+// Función para cargar técnicos recomendados
+const cargarTecnicosRecomendados = async (idIncidencia: number) => {
+  cargandoRecomendaciones.value = true;
+  try {
+    const response = await incidenciasService.obtenerTecnicosRecomendados(idIncidencia);
+    tecnicosRecomendados.value = response.data?.tecnicos_recomendados || response.data || [];
+  } catch (error) {
+    console.error('Error al cargar técnicos recomendados:', error);
+    tecnicosRecomendados.value = [];
+  } finally {
+    cargandoRecomendaciones.value = false;
+  }
+};
+
+// Función para seleccionar técnico desde las recomendaciones
+const seleccionarTecnico = (idTecnico: number) => {
+  formularioAsignacion.value.idTecnico = idTecnico;
+};
+
+// Funciones helper para estilos
+const getClasePuntaje = (puntaje: number) => {
+  if (puntaje >= 80) return 'puntaje-alto';
+  if (puntaje >= 60) return 'puntaje-medio';
+  return 'puntaje-bajo';
+};
+
+const getClaseCarga = (carga: number) => {
+  if (carga === 0) return 'carga-baja';
+  if (carga <= 2) return 'carga-media';
+  return 'carga-alta';
+};
+
+// Modificar la función de asignar técnico para cargar recomendaciones
+const asignarTecnico = async (incidencia: Incidencia) => {
+  modalAsignarTecnico.value = {
+    mostrar: true,
+    incidencia: incidencia
+  };
+  
+  // Cargar recomendaciones
+  if (incidencia.idIncidencia) {
+    await cargarTecnicosRecomendados(incidencia.idIncidencia);
+  }
+  
+  // Pre-seleccionar técnico si ya está asignado
+  if (incidencia.idTecnicoAsignado) {
+    formularioAsignacion.value.idTecnico = incidencia.idTecnicoAsignado;
+  }
+};
 
 const modalReportar = ref({
   mostrar: false
@@ -603,12 +711,12 @@ const cargandoEdicion = ref(false);
 
 // Computed para verificar si es Jefe de Taller
 const esJefeTaller = computed(() => {
-  return usuarioActual.value.tipo_usuario_nombre === 'Jefe de Taller';
+  return usuarioActual.value?.tipo_usuario_nombre === 'Jefe de Taller';
 });
 
 // Computed para verificar si es Técnico
 const esTecnico = computed(() => {
-  return usuarioActual.value.tipo_usuario_nombre === 'Técnico';
+  return usuarioActual.value?.tipo_usuario_nombre === 'Técnico';
 });
 
 // Función para navegar a la vista de técnico
@@ -622,21 +730,6 @@ const misIncidencias = computed(() => {
   return incidencias.value.filter(incidencia => 
     incidencia.idUsuarioReporta === usuarioActual.value.idUsuario
   ).slice(0, 5); 
-});
-
-// Computed para técnicos disponibles
-const tecnicosDisponibles = computed(() => {
-  return tecnicos.value.map(tecnico => {
-    const incidenciasAsignadas = incidencias.value.filter(
-      incidencia => incidencia.idTecnicoAsignado === tecnico.idUsuario && 
-                   !incidencia.fecha_cierre
-    ).length;
-    
-    return {
-      ...tecnico,
-      incidenciasAsignadas
-    };
-  }).sort((a, b) => a.incidenciasAsignadas - b.incidenciasAsignadas);
 });
 
 const tecnicoSeleccionado = computed(() => {
@@ -661,7 +754,6 @@ const cargandoCambioEstado = ref(false);
 // Computed para estados disponibles (excluyendo el estado actual)
 const estadosDisponibles = computed(() => {
   if (!modalCambiarEstado.value.incidencia) return estadosIncidencia.value;
-  
   return estadosIncidencia.value.filter(estado => 
     estado.idEstadoIncidencia !== modalCambiarEstado.value.incidencia?.idEstadoIncidencia
   );
@@ -722,10 +814,9 @@ const confirmarCambioEstado = async () => {
       comentario: comentario
     });
 
-    // 3. Si el estado es "Cerrado", actualizar la fecha de cierre
+    // 3. Si el estado es "Cerrado", actualizar la fecha de cierre (envía todos los campos requeridos si es necesario)
     if (nuevoEstadoId === 7) { // ID 7 = Cerrado
-      // Actualizar la incidencia con la fecha de cierre y todos los campos requeridos
-      const incidenciaActual = modalCambiarEstado.value.incidencia;
+      const incidenciaActual = modalCambiarEstado.value.incidencia!;
       await incidenciasService.actualizarIncidencia(incidenciaId, {
         titulo: incidenciaActual.titulo,
         descripcion: incidenciaActual.descripcion,
@@ -769,7 +860,7 @@ const estadosIncidencia = ref([
 const incidenciasFiltradas = computed(() => {
   if (!esJefeTaller.value) return [];
   
-  let filtered = incidencias.value;
+  let filtered = incidencias.value.slice();
 
   if (filtroEstado.value) {
     filtered = filtered.filter(i => i.idEstadoIncidencia === Number(filtroEstado.value));
@@ -782,8 +873,8 @@ const incidenciasFiltradas = computed(() => {
   if (terminoBusqueda.value) {
     const searchTerm = terminoBusqueda.value.toLowerCase();
     filtered = filtered.filter(i => 
-      i.titulo.toLowerCase().includes(searchTerm) ||
-      i.descripcion.toLowerCase().includes(searchTerm)
+      (i.titulo || '').toLowerCase().includes(searchTerm) ||
+      (i.descripcion || '').toLowerCase().includes(searchTerm)
     );
   }
 
@@ -811,12 +902,6 @@ const getTextoPrioridad = (prioridad: string) => {
     'critica': 'Crítica'
   };
   return prioridadMap[prioridad] || prioridad;
-};
-
-const getClaseCarga = (incidenciasAsignadas: number) => {
-  if (incidenciasAsignadas === 0) return 'carga-baja';
-  if (incidenciasAsignadas <= 2) return 'carga-media';
-  return 'carga-alta';
 };
 
 const formatFecha = (fecha: string | undefined) => {
@@ -847,11 +932,17 @@ const cargarDatos = async () => {
       usuariosService.obtenerTecnicos() 
     ]);
     
-    incidencias.value = resIncidencias.data;
-    equipos.value = resEquipos.data;
-    departamentos.value = resDepartamentos.data;
-    tecnicos.value = resTecnicos.data;
+    incidencias.value = resIncidencias.data || [];
+    equipos.value = resEquipos.data || [];
+    departamentos.value = resDepartamentos.data || [];
+    tecnicos.value = resTecnicos.data || [];
     
+    // si guardas usuario en storage, actualizar usuarioActual
+    const stored = localStorage.getItem('usuario');
+    if (stored) {
+      try { usuarioActual.value = JSON.parse(stored); } catch {}
+    }
+
     console.log('Técnicos cargados:', tecnicos.value); 
   } catch (error) {
     console.error('Error al cargar datos:', error);
@@ -862,7 +953,7 @@ const cargarDatos = async () => {
 };
 
 const aplicarFiltros = () => {
-  // Los filtros se aplican automáticamente mediante computed properties
+  // filtros gestionados por computed incidenciasFiltradas
 };
 
 const mostrarModalReportar = () => {
@@ -885,16 +976,6 @@ const cerrarDetalles = () => {
   historialIncidencia.value = [];
 };
 
-const asignarTecnico = (incidencia: Incidencia) => {
-  modalAsignarTecnico.value = {
-    mostrar: true,
-    incidencia: incidencia
-  };
-  // Pre-seleccionar técnico si ya está asignado
-  if (incidencia.idTecnicoAsignado) {
-    formularioAsignacion.value.idTecnico = incidencia.idTecnicoAsignado;
-  }
-};
 
 const cerrarAsignarTecnico = () => {
   modalAsignarTecnico.value.mostrar = false;
@@ -928,17 +1009,11 @@ const cerrarEditar = () => {
   };
 };
 
-/* const cambiarEstado = (incidencia: Incidencia) => {
-  // Implementar cambio de estado
-  console.log('Cambiar estado de:', incidencia);
-  alert('Funcionalidad de cambio de estado en desarrollo');
-}; */
-
 // Funciones de negocio
 const cargarHistorial = async (idIncidencia: number) => {
   try {
     const response = await incidenciasService.obtenerHistorial(idIncidencia);
-    historialIncidencia.value = response.data;
+    historialIncidencia.value = response.data || [];
   } catch (error) {
     console.error('Error al cargar historial:', error);
   }
@@ -957,8 +1032,7 @@ const confirmarAsignacion = async () => {
       idEstadoIncidencia: 4, 
       idTipoIncidencia: incidenciaActual.idTipoIncidencia,
       idTecnicoAsignado: formularioAsignacion.value.idTecnico,
-      prioridad: incidenciaActual.prioridad,
-      // fecha_cierre: incidenciaActual.fecha_cierre || null
+      prioridad: incidenciaActual.prioridad
     };
 
     console.log('Enviando datos de actualización:', datosActualizacion);
@@ -1243,6 +1317,157 @@ onMounted(() => {
 .actions {
   display: flex;
   gap: 5px;
+}
+
+.tecnicos-recomendados {
+  margin-bottom: 25px;
+}
+
+.tecnicos-recomendados h4 {
+  margin-bottom: 15px;
+  color: #374151;
+}
+
+.recomendaciones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tecnico-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.tecnico-card:hover {
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.tecnico-card.recomendado {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.tecnico-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tecnico-nombre {
+  font-weight: 600;
+  color: #374151;
+  font-size: 16px;
+}
+
+.puntaje {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.puntaje-alto {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.puntaje-medio {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.puntaje-bajo {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.tecnico-info {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.especialidad {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.nivel {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.nivel.avanzado {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.nivel.intermedio {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.nivel.basico {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.tecnico-stats {
+  margin-bottom: 10px;
+}
+
+.carga {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.carga-baja {
+  color: #10b981;
+}
+
+.carga-media {
+  color: #f59e0b;
+}
+
+.carga-alta {
+  color: #ef4444;
+}
+
+.tecnico-action {
+  text-align: right;
+}
+
+.btn-seleccionar {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.btn-seleccionar:hover {
+  background: #2563eb;
+}
+
+.btn-seleccionar.selected {
+  background: #10b981;
 }
 
 .btn-info, .btn-edit, .btn-asignar {

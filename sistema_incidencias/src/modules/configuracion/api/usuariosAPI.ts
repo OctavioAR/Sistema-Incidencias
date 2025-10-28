@@ -27,6 +27,7 @@ export interface UsuarioCompleto {
   fecha_creacion?: string;
   tipo_usuario_nombre?: string;
   departamento_nombre?: string;
+  especialidad_nombre?: string;
 }
 
 export interface CrearUsuarioRequest {

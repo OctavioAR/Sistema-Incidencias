@@ -1227,6 +1227,690 @@ app.get('/tecnicos/:id/incidencias', async (req, res) => {
   }
 });
 
+// Obtener especialidades
+app.get('/especialidades', async (_req, res) => {
+  try {
+    const especialidades = await query('SELECT * FROM EspecialidadTecnico ORDER BY nombre');
+    res.json(especialidades);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener especialidades' });
+  }
+});
+
+// Obtener técnicos con sus especialidades y carga de trabajo
+app.get('/tecnicos/detallados', async (_req, res) => {
+  try {
+    const tecnicos = await query(`
+      SELECT 
+        u.idUsuario,
+        u.nombre,
+        u.apellidoPat,
+        u.apellidoMat,
+        u.email,
+        d.nombre as departamento_nombre,
+        GROUP_CONCAT(DISTINCT e.nombre SEPARATOR ', ') as especialidades,
+        COUNT(DISTINCT te.idEspecialidad) as cantidad_especialidades,
+        (SELECT COUNT(*) FROM Incidencia i WHERE i.idTecnicoAsignado = u.idUsuario AND i.fecha_cierre IS NULL) as incidencias_activas
+      FROM Usuario u
+      LEFT JOIN Departamento d ON u.idDepartamento = d.idDepartamento
+      LEFT JOIN TecnicoEspecialidad te ON u.idUsuario = te.idUsuario
+      LEFT JOIN EspecialidadTecnico e ON te.idEspecialidad = e.idEspecialidad
+      WHERE u.idTipoUsuario = (SELECT idTipoUsuario FROM TipoUsuario WHERE nombre = 'Técnico') 
+        AND u.activo = 1
+      GROUP BY u.idUsuario
+      ORDER BY u.nombre
+    `);
+    res.json(tecnicos);
+  } catch (error) {
+    console.error('Error al obtener técnicos detallados:', error);
+    res.status(500).json({ error: 'Error al obtener técnicos' });
+  }
+});
+
+// Obtener técnicos recomendados para una incidencia
+app.get('/incidencias/:id/tecnicos-recomendados', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Obtener información de la incidencia
+    const incidencias = await query(`
+      SELECT i.*, t.idEspecialidadRecomendada 
+      FROM Incidencia i 
+      LEFT JOIN TipoIncidencia t ON i.idTipoIncidencia = t.idTipoIncidencia 
+      WHERE i.idIncidencia = ?
+    `, [id]);
+    
+    if (incidencias.length === 0) {
+      res.status(404).json({ error: 'Incidencia no encontrada' });
+      return;
+    }
+    
+    const incidencia = incidencias[0];
+    const especialidadRecomendada = incidencia.idEspecialidadRecomendada;
+    
+    // Obtener técnicos ordenados por compatibilidad
+    let queryTecnicos = `
+      SELECT 
+        u.idUsuario,
+        u.nombre,
+        u.apellidoPat,
+        u.apellidoMat,
+        u.email,
+        d.nombre as departamento_nombre,
+        te.nivel_expertise,
+        e.nombre as especialidad_nombre,
+        (SELECT COUNT(*) FROM Incidencia i2 WHERE i2.idTecnicoAsignado = u.idUsuario AND i2.fecha_cierre IS NULL) as incidencias_activas,
+        -- Puntaje de compatibilidad
+        CASE 
+          WHEN te.idEspecialidad = ? THEN 
+            CASE te.nivel_expertise
+              WHEN 'avanzado' THEN 100
+              WHEN 'intermedio' THEN 80
+              WHEN 'basico' THEN 60
+              ELSE 0
+            END
+          ELSE 40
+        END as puntaje_compatibilidad
+      FROM Usuario u
+      LEFT JOIN Departamento d ON u.idDepartamento = d.idDepartamento
+      LEFT JOIN TecnicoEspecialidad te ON u.idUsuario = te.idUsuario
+      LEFT JOIN EspecialidadTecnico e ON te.idEspecialidad = e.idEspecialidad
+      WHERE u.idTipoUsuario = (SELECT idTipoUsuario FROM TipoUsuario WHERE nombre = 'Técnico') 
+        AND u.activo = 1
+    `;
+    
+    const params = [especialidadRecomendada];
+    
+    if (especialidadRecomendada) {
+      queryTecnicos += ` AND te.idEspecialidad IS NOT NULL`;
+    }
+    
+    queryTecnicos += ` ORDER BY puntaje_compatibilidad DESC, incidencias_activas ASC, u.nombre`;
+    
+    const tecnicos = await query(queryTecnicos, params);
+    
+    res.json({
+      incidencia: {
+        id: incidencia.idIncidencia,
+        titulo: incidencia.titulo,
+        tipo: incidencia.tipo_incidencia_nombre,
+        especialidad_recomendada: especialidadRecomendada
+      },
+      tecnicos_recomendados: tecnicos
+    });
+  } catch (error) {
+    console.error('Error al obtener técnicos recomendados:', error);
+    res.status(500).json({ error: 'Error al obtener técnicos recomendados' });
+  }
+});
+
+// Endpoints para especialidades de usuarios
+app.get('/usuarios/:id/especialidades', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const especialidades = await query(`
+      SELECT te.*, e.nombre, e.descripcion
+      FROM TecnicoEspecialidad te
+      JOIN EspecialidadTecnico e ON te.idEspecialidad = e.idEspecialidad
+      WHERE te.idUsuario = ?
+    `, [id]);
+    res.json(especialidades);
+  } catch (error) {
+    console.error('Error al obtener especialidades del usuario:', error);
+    res.status(500).json({ error: 'Error al obtener especialidades' });
+  }
+});
+
+app.post('/usuarios/:id/especialidades', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { especialidades } = req.body;
+
+    // Eliminar especialidades existentes
+    await execute('DELETE FROM TecnicoEspecialidad WHERE idUsuario = ?', [id]);
+
+    // Insertar nuevas especialidades
+    for (const esp of especialidades) {
+      await execute(
+        'INSERT INTO TecnicoEspecialidad (idUsuario, idEspecialidad, nivel_expertise) VALUES (?, ?, ?)',
+        [id, esp.idEspecialidad, esp.nivel_expertise]
+      );
+    }
+
+    res.json({ message: 'Especialidades actualizadas correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar especialidades:', error);
+    res.status(500).json({ error: 'Error al actualizar especialidades' });
+  }
+});
+
+app.put('/usuarios/:id/especialidades', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { especialidades } = req.body;
+
+    // Eliminar especialidades existentes
+    await execute('DELETE FROM TecnicoEspecialidad WHERE idUsuario = ?', [id]);
+
+    // Insertar nuevas especialidades
+    for (const esp of especialidades) {
+      await execute(
+        'INSERT INTO TecnicoEspecialidad (idUsuario, idEspecialidad, nivel_expertise) VALUES (?, ?, ?)',
+        [id, esp.idEspecialidad, esp.nivel_expertise]
+      );
+    }
+
+    res.json({ message: 'Especialidades actualizadas correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar especialidades:', error);
+    res.status(500).json({ error: 'Error al actualizar especialidades' });
+  }
+});
+// Obtener todos los items del almacén
+app.get('/almacen', async (_req, res) => {
+  try {
+    const items = await query(`
+      SELECT * FROM Almacen 
+      ORDER BY codigo
+    `);
+    res.json(items);
+  } catch (error) {
+    console.error('Error al obtener items del almacén:', error);
+    res.status(500).json({ error: 'Error al obtener items del almacén' });
+  }
+});
+
+// Crear nuevo item en almacén
+app.post('/almacen', async (req, res) => {
+  try {
+    const { 
+      codigo, nombre, descripcion, categoria, stock_actual, stock_minimo,
+      ubicacion, proveedor, fecha_adquisicion, costo_unitario, estado 
+    } = req.body;
+    
+    console.log('Datos recibidos para crear item:', req.body);
+
+    const result = await execute(
+      `INSERT INTO Almacen 
+       (codigo, nombre, descripcion, categoria, stock_actual, stock_minimo,
+        ubicacion, proveedor, fecha_adquisicion, costo_unitario, estado) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        codigo, nombre, descripcion || null, categoria, 
+        Number(stock_actual), Number(stock_minimo),
+        ubicacion || null, proveedor || null, 
+        fecha_adquisicion || null, costo_unitario || null,
+        estado || 'disponible'
+      ]
+    );
+
+    console.log('Éxito - Item creado con ID:', result.insertId);
+    
+    res.status(201).json({ 
+      message: 'Item creado exitosamente', 
+      id: result.insertId 
+    });
+  } catch (error: any) {
+    console.error('Error en POST /almacen:', error.message);
+    res.status(500).json({ 
+      error: 'Error del servidor: ' + error.message
+    });
+  }
+});
+
+// Actualizar item de almacén
+app.put('/almacen/:id', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const itemData = req.body;
+
+    console.log('📥 Actualizando item de almacén:', id, itemData);
+
+    // Convertir undefined a null para MySQL
+    const datosParaActualizar = {
+      codigo: itemData.codigo,
+      nombre: itemData.nombre,
+      descripcion: itemData.descripcion || null,
+      categoria: itemData.categoria,
+      stock_actual: Number(itemData.stock_actual) || 0,
+      stock_minimo: Number(itemData.stock_minimo) || 0,
+      ubicacion: itemData.ubicacion || null,
+      proveedor: itemData.proveedor || null,
+      fecha_adquisicion: itemData.fecha_adquisicion || null,
+      costo_unitario: itemData.costo_unitario || null,
+      estado: itemData.estado || 'disponible'
+    };
+
+    await execute(`
+      UPDATE Almacen 
+      SET codigo = ?, nombre = ?, descripcion = ?, categoria = ?, 
+          stock_actual = ?, stock_minimo = ?, ubicacion = ?, proveedor = ?,
+          fecha_adquisicion = ?, costo_unitario = ?, estado = ?
+      WHERE idAlmacen = ?
+    `, [
+      datosParaActualizar.codigo,
+      datosParaActualizar.nombre,
+      datosParaActualizar.descripcion,
+      datosParaActualizar.categoria,
+      datosParaActualizar.stock_actual,
+      datosParaActualizar.stock_minimo,
+      datosParaActualizar.ubicacion,
+      datosParaActualizar.proveedor,
+      datosParaActualizar.fecha_adquisicion,
+      datosParaActualizar.costo_unitario,
+      datosParaActualizar.estado,
+      id
+    ]);
+
+    console.log('✅ Item de almacén actualizado correctamente:', id);
+    return res.json({ message: 'Item de almacén actualizado correctamente' });
+    
+  } catch (error: any) {
+    console.error('❌ Error al actualizar item de almacén:', error.message);
+    return res.status(500).json({ error: 'Error al actualizar item de almacén: ' + error.message });
+  }
+});
+
+// Eliminar item de almacén
+app.delete('/almacen/:id', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await execute('DELETE FROM Almacen WHERE idAlmacen = ?', [id]);
+    res.json({ message: 'Item de almacén eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar item de almacén:', error);
+    res.status(500).json({ error: 'Error al eliminar item de almacén' });
+  }
+});
+
+// Obtener un item específico
+app.get('/almacen/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const items = await query('SELECT * FROM Almacen WHERE idAlmacen = ?', [id]);
+    
+    if (items.length === 0) {
+      res.status(404).json({ error: 'Item no encontrado' });
+      return;
+    }
+    
+    res.json(items[0]);
+  } catch (error) {
+    console.error('Error al obtener item de almacén:', error);
+    res.status(500).json({ error: 'Error al obtener item de almacén' });
+  }
+});
+
+// Registrar movimiento
+app.post('/almacen/movimientos', async (req, res) => {
+  try {
+    const {
+      idAlmacen,
+      tipo_movimiento,
+      cantidad,
+      motivo,
+      idUsuario,
+      idIncidencia,
+      idRFC,  
+      comentarios
+    } = req.body;
+
+    // Primero obtener el item actual
+    const items = await query('SELECT * FROM Almacen WHERE idAlmacen = ?', [idAlmacen]);
+    if (items.length === 0) {
+      res.status(404).json({ error: 'Item de almacén no encontrado' });
+      return;
+    }
+
+    const item = items[0];
+    let nuevoStock = item.stock_actual;
+
+    // Calcular nuevo stock según el tipo de movimiento
+    if (tipo_movimiento === 'entrada') {
+      nuevoStock += cantidad;
+    } else if (tipo_movimiento === 'salida') {
+      if (item.stock_actual < cantidad) {
+        res.status(400).json({ error: 'Stock insuficiente para realizar la salida' });
+        return;
+      }
+      nuevoStock -= cantidad;
+    }
+
+ // Registrar el movimiento con RFC
+    const result = await execute(`
+      INSERT INTO MovimientoAlmacen 
+      (idAlmacen, tipo_movimiento, cantidad, motivo, idUsuario, 
+       idIncidencia, idRFC, comentarios)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [idAlmacen, tipo_movimiento, cantidad, motivo, idUsuario, 
+        idIncidencia || null, idRFC || null, comentarios || null]);
+
+    // Actualizar el stock del item
+    await execute(
+      'UPDATE Almacen SET stock_actual = ? WHERE idAlmacen = ?',
+      [nuevoStock, idAlmacen]
+    );
+
+    res.status(201).json({ 
+      message: 'Movimiento registrado correctamente', 
+      id: result.insertId,
+      nuevoStock: nuevoStock
+    });
+  } catch (error) {
+    console.error('Error al registrar movimiento:', error);
+    res.status(500).json({ error: 'Error al registrar movimiento' });
+  }
+});
+
+// Obtener movimientos (todos o por item)
+app.get('/almacen/movimientos', async (req, res) => {
+  try {
+    const { idAlmacen } = req.query;
+    
+    let queryStr = `
+      SELECT m.*, 
+             CONCAT(u.nombre, ' ', u.apellidoPat) as usuario_nombre,
+             a.nombre as item_nombre,
+             a.codigo as item_codigo
+      FROM MovimientoAlmacen m
+      LEFT JOIN Usuario u ON m.idUsuario = u.idUsuario
+      LEFT JOIN Almacen a ON m.idAlmacen = a.idAlmacen
+    `;
+    
+    const params = [];
+    
+    if (idAlmacen) {
+      queryStr += ' WHERE m.idAlmacen = ?';
+      params.push(idAlmacen);
+    }
+    
+    queryStr += ' ORDER BY m.fecha_movimiento DESC';
+    
+    const movimientos = await query(queryStr, params);
+    res.json(movimientos);
+  } catch (error) {
+    console.error('Error al obtener movimientos:', error);
+    res.status(500).json({ error: 'Error al obtener movimientos del almacén' });
+  }
+});
+
+// Obtener movimientos de un item específico
+app.get('/almacen/:idAlmacen/movimientos', async (req, res) => {
+  try {
+    const { idAlmacen } = req.params;
+    
+    const movimientos = await query(`
+      SELECT m.*, 
+             CONCAT(u.nombre, ' ', u.apellidoPat) as usuario_nombre
+      FROM MovimientoAlmacen m
+      LEFT JOIN Usuario u ON m.idUsuario = u.idUsuario
+      WHERE m.idAlmacen = ?
+      ORDER BY m.fecha_movimiento DESC
+    `, [idAlmacen]);
+    
+    res.json(movimientos);
+  } catch (error) {
+    console.error('Error al obtener movimientos del item:', error);
+    res.status(500).json({ error: 'Error al obtener movimientos del item' });
+  }
+});
+// Obtener todos los RFC
+app.get('/rfc', async (_req, res) => {
+  try {
+    const rfc = await query(`
+      SELECT r.*, 
+             CONCAT(u.nombre, ' ', u.apellidoPat) as solicitante_nombre,
+             CONCAT(ua.nombre, ' ', ua.apellidoPat) as aprobador_nombre
+      FROM RFC r
+      LEFT JOIN Usuario u ON r.idUsuarioSolicitante = u.idUsuario
+      LEFT JOIN Usuario ua ON r.idUsuarioAprobador = ua.idUsuario
+      ORDER BY r.fecha_solicitud DESC
+    `);
+    res.json(rfc);
+  } catch (error) {
+    console.error('Error al obtener RFC:', error);
+    res.status(500).json({ error: 'Error al obtener RFC' });
+  }
+});
+
+// Crear nuevo RFC
+app.post('/rfc', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const {
+      titulo,
+      descripcion,
+      justificacion,
+      impacto,
+      idUsuarioSolicitante,
+      idTipoCambio,
+      prioridad,
+      estado
+    } = req.body;
+
+    console.log('Creando RFC con datos:', req.body);
+
+    const result = await execute(`
+      INSERT INTO RFC 
+      (titulo, descripcion, justificacion, impacto, idUsuarioSolicitante, idTipoCambio, prioridad, estado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [titulo, descripcion, justificacion, impacto, idUsuarioSolicitante, idTipoCambio, prioridad, estado]);
+
+    console.log('RFC creado con ID:', result.insertId);
+
+    res.status(201).json({ 
+      message: 'RFC creado correctamente', 
+      id: result.insertId 
+    });
+  } catch (error: any) {
+    console.error('Error al crear RFC:', error.message);
+    res.status(500).json({ error: 'Error al crear RFC: ' + error.message });
+  }
+});
+
+// Actualizar RFC
+app.put('/rfc/:id', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      titulo,
+      descripcion,
+      justificacion,
+      impacto,
+      idTipoCambio,
+      prioridad,
+      estado
+    } = req.body;
+
+    await execute(`
+      UPDATE RFC 
+      SET titulo = ?, descripcion = ?, justificacion = ?, impacto = ?, 
+          idTipoCambio = ?, prioridad = ?, estado = ?
+      WHERE idRFC = ?
+    `, [titulo, descripcion, justificacion, impacto, idTipoCambio, prioridad, estado, id]);
+
+    res.json({ message: 'RFC actualizado correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar RFC:', error);
+    res.status(500).json({ error: 'Error al actualizar RFC' });
+  }
+});
+
+// Actualizar estado del RFC
+app.put('/rfc/:id/estado', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    await execute(
+      'UPDATE RFC SET estado = ? WHERE idRFC = ?',
+      [estado, id]
+    );
+
+    res.json({ message: 'Estado del RFC actualizado correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar estado del RFC:', error);
+    res.status(500).json({ error: 'Error al actualizar estado del RFC' });
+  }
+});
+
+// Aprobar RFC
+app.put('/rfc/:id/aprobar', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { comentarios } = req.body;
+    const usuarioId = req.headers['usuario-id'];
+
+    await execute(`
+      UPDATE RFC 
+      SET estado = 'aprobado', 
+          fecha_aprobacion = NOW(),
+          idUsuarioAprobador = ?,
+          comentarios_aprobacion = ?
+      WHERE idRFC = ?
+    `, [usuarioId, comentarios, id]);
+
+    res.json({ message: 'RFC aprobado correctamente' });
+  } catch (error) {
+    console.error('Error al aprobar RFC:', error);
+    res.status(500).json({ error: 'Error al aprobar RFC' });
+  }
+});
+
+// Rechazar RFC
+app.put('/rfc/:id/rechazar', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { comentarios } = req.body;
+    const usuarioId = req.headers['usuario-id'];
+
+    await execute(`
+      UPDATE RFC 
+      SET estado = 'rechazado', 
+          fecha_aprobacion = NOW(),
+          idUsuarioAprobador = ?,
+          comentarios_aprobacion = ?
+      WHERE idRFC = ?
+    `, [usuarioId, comentarios, id]);
+
+    res.json({ message: 'RFC rechazado correctamente' });
+  } catch (error) {
+    console.error('Error al rechazar RFC:', error);
+    res.status(500).json({ error: 'Error al rechazar RFC' });
+  }
+});
+
+// Obtener items de un RFC
+app.get('/rfc/:id/items', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const items = await query(`
+      SELECT * FROM RFCItem 
+      WHERE idRFC = ?
+      ORDER BY idRFCItem
+    `, [id]);
+    res.json(items);
+  } catch (error) {
+    console.error('Error al obtener items del RFC:', error);
+    res.status(500).json({ error: 'Error al obtener items del RFC' });
+  }
+});
+
+// Obtener bitácora de un RFC
+app.get('/rfc/:id/bitacora', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const bitacora = await query(`
+      SELECT b.*, 
+             CONCAT(u.nombre, ' ', u.apellidoPat) as usuario_nombre
+      FROM BitacoraCambio b
+      LEFT JOIN Usuario u ON b.idUsuario = u.idUsuario
+      WHERE b.idRFC = ?
+      ORDER BY b.fecha_cambio DESC
+    `, [id]);
+    res.json(bitacora);
+  } catch (error) {
+    console.error('Error al obtener bitácora del RFC:', error);
+    res.status(500).json({ error: 'Error al obtener bitácora del RFC' });
+  }
+});
+
+// Crear items para RFC
+app.post('/rfc/:id/items', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items } = req.body;
+
+    console.log('Guardando items para RFC:', id, items);
+
+    // Eliminar items existentes primero
+    await execute('DELETE FROM RFCItem WHERE idRFC = ?', [id]);
+
+    // Insertar nuevos items
+    for (const item of items) {
+      // Convertir undefined a null explícitamente
+      const estadoAnterior = item.estado_anterior !== undefined ? item.estado_anterior : null;
+      const estadoNuevo = item.estado_nuevo !== undefined ? item.estado_nuevo : null;
+
+      await execute(`
+        INSERT INTO RFCItem 
+        (idRFC, tipo_item, id_item, descripcion_cambio, estado_anterior, estado_nuevo)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        id, 
+        item.tipo_item, 
+        item.id_item, 
+        item.descripcion_cambio, 
+        estadoAnterior, 
+        estadoNuevo
+      ]);
+    }
+
+    console.log('Items del RFC guardados correctamente para RFC:', id);
+    res.status(201).json({ message: 'Items del RFC guardados correctamente' });
+  } catch (error: any) {
+    console.error('Error al guardar items del RFC:', error.message);
+    res.status(500).json({ error: 'Error al guardar items del RFC: ' + error.message });
+  }
+});
+
+app.put('/rfc/:id/items', requireTecnicoOJefeTaller, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items } = req.body;
+
+    console.log('Actualizando items para RFC:', id, items);
+
+    // Eliminar items existentes primero
+    await execute('DELETE FROM RFCItem WHERE idRFC = ?', [id]);
+
+    // Insertar nuevos items
+    for (const item of items) {
+      // Convertir undefined a null explícitamente
+      const estadoAnterior = item.estado_anterior !== undefined ? item.estado_anterior : null;
+      const estadoNuevo = item.estado_nuevo !== undefined ? item.estado_nuevo : null;
+
+      await execute(`
+        INSERT INTO RFCItem 
+        (idRFC, tipo_item, id_item, descripcion_cambio, estado_anterior, estado_nuevo)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        id, 
+        item.tipo_item, 
+        item.id_item, 
+        item.descripcion_cambio, 
+        estadoAnterior, 
+        estadoNuevo
+      ]);
+    }
+
+    console.log('Items del RFC actualizados correctamente para RFC:', id);
+    res.json({ message: 'Items del RFC actualizados correctamente' });
+  } catch (error: any) {
+    console.error('Error al actualizar items del RFC:', error.message);
+    res.status(500).json({ error: 'Error al actualizar items del RFC: ' + error.message });
+  }
+});
+
 // Ruta de prueba
 app.get('/hola', (_req, res) => {
     res.send('Hola Mundo desde el sistema de incidencias');

@@ -101,9 +101,22 @@ export const incidenciasService = {
   agregarHistorial: (idIncidencia: number, datos: { idEstadoNuevo: number; comentario?: string }): Promise<AxiosResponse<any>> =>
     incidenciasAPI.post(`/incidencias/${idIncidencia}/historial`, datos),
 
-    // Obtener incidencias asignadas a un técnico
+  // Obtener incidencias asignadas a un técnico
   obtenerIncidenciasPorTecnico: (idTecnico: number): Promise<AxiosResponse<Incidencia[]>> =>
     incidenciasAPI.get<Incidencia[]>(`/tecnicos/${idTecnico}/incidencias`),
+
+  // Obtener técnicos recomendados para una incidencia
+  obtenerTecnicosRecomendados: (idIncidencia: number): Promise<AxiosResponse<any>> =>
+    incidenciasAPI.get(`/incidencias/${idIncidencia}/tecnicos-recomendados`),
+};
+
+// Servicio para especialidades
+export const especialidadesService = {
+  obtenerEspecialidades: (): Promise<AxiosResponse<any>> =>
+    incidenciasAPI.get('/especialidades'),
+    
+  obtenerTecnicosDetallados: (): Promise<AxiosResponse<any>> =>
+    incidenciasAPI.get('/tecnicos/detallados'),
 };
 
 export default incidenciasAPI;

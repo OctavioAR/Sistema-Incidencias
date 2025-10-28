@@ -42,6 +42,12 @@
         style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
         Incidencias
       </router-link>
+
+      <router-link 
+        to="/cambios" 
+        style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
+        Cambios
+      </router-link>
       
       <div v-if="usuario" style="float: right;">
         <span style="margin-right: 1rem;">

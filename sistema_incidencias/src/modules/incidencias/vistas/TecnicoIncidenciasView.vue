@@ -198,7 +198,7 @@
                     <span class="estado-nuevo">{{ item.estado_nuevo_nombre }}</span>
                 </div>
                 <div v-if="item.comentario" class="historial-comentario">
-                    <strong>Comentario:</strong> {{ item.comentario }}
+                    <strong>Ficha Técnica:</strong> {{ item.comentario }}
                 </div>
                 </div>
             </div>
@@ -253,7 +253,7 @@
             </div>
 
             <div class="form-group">
-              <label for="comentarioEstado">Comentario (Opcional)</label>
+              <label for="comentarioEstado">Ficha Técnica:</label>
               <textarea 
                 id="comentarioEstado"
                 v-model="formularioCambioEstado.comentario" 
@@ -295,7 +295,7 @@
             </div>
 
             <div class="form-group">
-              <label for="comentarioTecnico">Comentario *</label>
+              <label for="comentarioTecnico">Ficha Técnica:</label>
               <textarea 
                 id="comentarioTecnico"
                 v-model="formularioComentario.comentario" 
