@@ -170,7 +170,7 @@ const guardar = async () => {
   // Verificar que el usuario esté autenticado
   const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
   if (!usuario || !usuario.idUsuario) {
-    alert('❌ Error: Usuario no autenticado. Por favor, inicie sesión nuevamente.');
+    alert('Error: Usuario no autenticado. Por favor, inicie sesión nuevamente.');
     return;
   }
 
@@ -190,15 +190,15 @@ const guardar = async () => {
     await almacenService.registrarMovimiento(datosMovimiento);
 
     const mensaje = props.tipo === 'entrada' 
-      ? `✅ Entrada de ${formulario.value.cantidad} unidades registrada correctamente`
-      : `✅ Salida de ${formulario.value.cantidad} unidades registrada correctamente`;
+      ? `Entrada de ${formulario.value.cantidad} unidades registrada correctamente`
+      : `Salida de ${formulario.value.cantidad} unidades registrada correctamente`;
     
     alert(mensaje);
     emit('guardado');
     cerrar();
   } catch (error: any) {
     const mensajeError = error.response?.data?.error || 'Error al registrar el movimiento';
-    alert('❌ ' + mensajeError);
+    alert('' + mensajeError);
     console.error('Error al registrar movimiento:', error);
   } finally {
     cargando.value = false;

@@ -44,6 +44,7 @@
       </router-link>
 
       <router-link 
+        v-if="mostrarCambios"
         to="/cambios" 
         style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
         Cambios
@@ -104,6 +105,12 @@ const mostrarConfiguracion = computed(() => {
   // Solo Jefe de Taller y Técnicos pueden ver configuración
   return tipoUsuario === 'Jefe de Taller' || tipoUsuario === 'Técnico' || tipoUsuario === 'Jefe de Departamento';
 });
+
+const mostrarCambios = computed(() => {
+  const tipoUsuario = usuario.value?.tipo_usuario_nombre;
+  // Solo Jefe de Departamento puede ver cambios
+  return tipoUsuario === 'Jefe de Taller' || tipoUsuario === 'Técnico';
+})
 
 const cargarUsuario = () => {
   const usuarioGuardado = localStorage.getItem('usuario');

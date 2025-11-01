@@ -33,9 +33,9 @@
                 class="form-select"
               >
                 <option value="">Seleccionar tipo...</option>
-                <option value="emergencia">🚨 Emergencia</option>
-                <option value="normal">📋 Normal</option>
-                <option value="estandar">⚙️ Estándar</option>
+                <option value="emergencia">Emergencia</option>
+                <option value="normal">Normal</option>
+                <option value="estandar">Estándar</option>
               </select>
             </div>
             
@@ -47,10 +47,10 @@
                 required
                 class="form-select"
               >
-                <option value="baja">🟢 Baja</option>
-                <option value="media">🟡 Media</option>
-                <option value="alta">🟠 Alta</option>
-                <option value="critica">🔴 Crítica</option>
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+                <option value="critica">Crítica</option>
               </select>
             </div>
           </div>
@@ -107,7 +107,7 @@
 
         <!-- Items a cambiar -->
         <div class="form-section">
-          <h4>🎯 Items a Cambiar</h4>
+          <h4>Items a Cambiar</h4>
           <p class="section-description">Especifica los elementos del almacén que serán utilizados</p>
           
           <div v-for="(item, index) in formulario.items" :key="index" class="item-cambio">
@@ -126,11 +126,11 @@
                   class="form-select"
                 >
                   <option value="">Seleccionar tipo...</option>
-                  <option value="hardware">🖥️ Hardware</option>
-                  <option value="software">💾 Software</option>
-                  <option value="consumible">🖨️ Consumible</option>
-                  <option value="herramienta">🛠️ Herramienta</option>
-                  <option value="repuesto">🔧 Repuesto</option>
+                  <option value="hardware">Hardware</option>
+                  <option value="software">Software</option>
+                  <option value="consumible">Consumible</option>
+                  <option value="herramienta">Herramienta</option>
+                  <option value="repuesto">Repuesto</option>
                 </select>
               </div>
               

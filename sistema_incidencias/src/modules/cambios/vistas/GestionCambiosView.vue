@@ -333,9 +333,9 @@ const rfcFiltrados = computed(() => {
 // Funciones helper
 const getTextoTipo = (tipo: string) => {
   const tipoMap: { [key: string]: string } = {
-    'emergencia': '🚨 Emergencia',
-    'normal': '📋 Normal',
-    'estandar': '⚙️ Estándar'
+    'emergencia': 'Emergencia',
+    'normal': 'Normal',
+    'estandar': 'Estándar'
   };
   return tipoMap[tipo] || tipo;
 };
@@ -365,10 +365,10 @@ const getTextoEstado = (estado: string) => {
 
 const getTextoTipoItem = (tipo: string) => {
   const tipoMap: { [key: string]: string } = {
-    'equipo': '🖥️ Equipo',
-    'software': '💾 Software',
-    'configuracion': '⚙️ Configuración',
-    'proceso': '📊 Proceso'
+    'equipo': 'Equipo',
+    'software': 'Software',
+    'configuracion': 'Configuración',
+    'proceso': 'Proceso'
   };
   return tipoMap[tipo] || tipo;
 };

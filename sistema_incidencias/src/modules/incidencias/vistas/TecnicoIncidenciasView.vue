@@ -208,7 +208,7 @@
         <div class="form-actions">
           <button @click="cerrarDetalles" class="btn-secondary">Cerrar</button>
           <button @click="cambiarEstado(modalDetalles.incidencia!)" class="btn-estado">🔄 Cambiar Estado</button>
-          <button @click="agregarComentario(modalDetalles.incidencia!)" class="btn-comentario">💬 Agregar Comentario</button>
+          <button @click="agregarComentario(modalDetalles.incidencia!)" class="btn-comentario">💬 Ficha Técnica</button>
         </div>
       </div>
     </div>
@@ -279,7 +279,7 @@
     <div v-if="modalComentario.mostrar" class="modal-overlay" @click.self="cerrarComentario">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>Agregar Comentario - Incidencia #{{ modalComentario.incidencia?.idIncidencia }}</h3>
+          <h3>Ficha Técnica - Incidencia #{{ modalComentario.incidencia?.idIncidencia }}</h3>
           <button @click="cerrarComentario" class="btn-cerrar">×</button>
         </div>
         
@@ -311,7 +311,7 @@
           <div class="form-actions">
             <button type="button" @click="cerrarComentario" class="btn-secondary">Cancelar</button>
             <button type="submit" :disabled="cargandoComentario || !formularioComentario.comentario.trim()" class="btn-primary">
-              {{ cargandoComentario ? 'Guardando...' : '💾 Guardar Comentario' }}
+              {{ cargandoComentario ? 'Guardando...' : '💾 Guardar Ficha' }}
             </button>
           </div>
         </form>
@@ -601,12 +601,12 @@ const confirmarComentario = async () => {
       comentario: formularioComentario.value.comentario
     });
 
-    alert('✅ Comentario agregado correctamente');
+    alert('Ficha agregada correctamente');
     cerrarComentario();
     cargarDatos();
   } catch (error: any) {
     console.error('Error al agregar comentario:', error);
-    alert('❌ Error al agregar comentario: ' + (error.response?.data?.error || error.message));
+    alert('Error al agregar la ficha: ' + (error.response?.data?.error || error.message));
   } finally {
     cargandoComentario.value = false;
   }

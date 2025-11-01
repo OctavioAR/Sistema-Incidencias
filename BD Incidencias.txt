@@ -197,6 +197,132 @@ CREATE TABLE HistorialIncidencia (
     FOREIGN KEY (idUsuarioCambio) REFERENCES Usuario(idUsuario)
 );
 
+-- Tabla para almacén/inventario
+CREATE TABLE Almacen (
+    idAlmacen INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(20) NOT NULL UNIQUE,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    categoria ENUM('hardware', 'software', 'consumibles', 'herramientas', 'repuestos') NOT NULL,
+    stock_actual INT DEFAULT 0,
+    stock_minimo INT DEFAULT 0,
+    ubicacion VARCHAR(100),
+    proveedor VARCHAR(100),
+    fecha_adquisicion DATE,
+    costo_unitario DECIMAL(10,2),
+    estado ENUM('disponible', 'agotado', 'baja', 'mantenimiento') DEFAULT 'disponible',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla para RFC (Request for Change)
+CREATE TABLE RFC (
+    idRFC INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(255) NOT NULL,
+    descripcion TEXT NOT NULL,
+    justificacion TEXT,
+    impacto TEXT,
+    idUsuarioSolicitante INT,
+    idTipoCambio ENUM('emergencia', 'normal', 'estandar') DEFAULT 'normal',
+    prioridad ENUM('baja', 'media', 'alta', 'critica') DEFAULT 'media',
+    estado ENUM('borrador', 'pendiente_aprobacion', 'aprobado', 'rechazado', 'en_progreso', 'completado', 'cancelado') DEFAULT 'borrador',
+    fecha_solicitud TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_aprobacion TIMESTAMP NULL,
+    fecha_implementacion TIMESTAMP NULL,
+    fecha_cierre TIMESTAMP NULL,
+    idUsuarioAprobador INT NULL,
+    comentarios_aprobacion TEXT,
+    FOREIGN KEY (idUsuarioSolicitante) REFERENCES Usuario(idUsuario),
+    FOREIGN KEY (idUsuarioAprobador) REFERENCES Usuario(idUsuario)
+);
+
+-- Tabla para items de RFC (qué se va a cambiar)
+CREATE TABLE RFCItem (
+    idRFCItem INT AUTO_INCREMENT PRIMARY KEY,
+    idRFC INT,
+    tipo_item ENUM('equipo', 'software', 'configuracion', 'proceso') NOT NULL,
+    id_item INT, -- ID del equipo, software, etc.
+    descripcion_cambio TEXT NOT NULL,
+    estado_anterior TEXT,
+    estado_nuevo TEXT,
+    FOREIGN KEY (idRFC) REFERENCES RFC(idRFC) ON DELETE CASCADE
+);
+
+-- Tabla para bitácora de cambios
+CREATE TABLE BitacoraCambio (
+    idBitacora INT AUTO_INCREMENT PRIMARY KEY,
+    idRFC INT NULL,
+    tipo_cambio VARCHAR(100) NOT NULL,
+    descripcion TEXT NOT NULL,
+    idUsuario INT,
+    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    detalles TEXT,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    FOREIGN KEY (idRFC) REFERENCES RFC(idRFC),
+    FOREIGN KEY (idUsuario) REFERENCES Usuario(idUsuario)
+);
+
+-- Tabla para movimientos de almacén
+CREATE TABLE MovimientoAlmacen (
+    idMovimiento INT AUTO_INCREMENT PRIMARY KEY,
+    idAlmacen INT,
+    tipo_movimiento ENUM('entrada', 'salida', 'ajuste') NOT NULL,
+    cantidad INT NOT NULL,
+    motivo VARCHAR(255),
+    idUsuario INT,
+    idIncidencia INT NULL,
+    idRFC INT NULL,
+    fecha_movimiento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    comentarios TEXT,
+    FOREIGN KEY (idAlmacen) REFERENCES Almacen(idAlmacen),
+    FOREIGN KEY (idUsuario) REFERENCES Usuario(idUsuario),
+    FOREIGN KEY (idIncidencia) REFERENCES Incidencia(idIncidencia),
+    FOREIGN KEY (idRFC) REFERENCES RFC(idRFC)
+);
+
+-- Tabla para especialidades de técnicos
+CREATE TABLE EspecialidadTecnico (
+    idEspecialidad INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    descripcion VARCHAR(255)
+);
+
+-- Tabla para relación técnico-especialidad
+CREATE TABLE TecnicoEspecialidad (
+    idTecnicoEspecialidad INT AUTO_INCREMENT PRIMARY KEY,
+    idUsuario INT,
+    idEspecialidad INT,
+    nivel_expertise ENUM('basico', 'intermedio', 'avanzado') DEFAULT 'intermedio',
+    FOREIGN KEY (idUsuario) REFERENCES Usuario(idUsuario) ON DELETE CASCADE,
+    FOREIGN KEY (idEspecialidad) REFERENCES EspecialidadTecnico(idEspecialidad) ON DELETE CASCADE
+);
+
+-- Insertar especialidades
+INSERT IGNORE INTO EspecialidadTecnico (nombre, descripcion) VALUES 
+('Hardware', 'Reparación y mantenimiento de componentes físicos'),
+('Software', 'Instalación y solución de problemas de software'),
+('Redes', 'Configuración y solución de problemas de red'),
+('Sistemas Operativos', 'Instalación y configuración de SO'),
+('Impresoras', 'Mantenimiento y reparación de impresoras'),
+('Proyectores', 'Mantenimiento y configuración de proyectores');
+
+-- Asignar especialidades a técnicos existentes (ejemplo)
+INSERT IGNORE INTO TecnicoEspecialidad (idUsuario, idEspecialidad, nivel_expertise) VALUES 
+(3, 1, 'avanzado'),  -- María López - Hardware avanzado
+(3, 2, 'intermedio'), -- María López - Software intermedio
+(4, 2, 'avanzado'),  -- Carlos García - Software avanzado
+(4, 3, 'intermedio'), -- Carlos García - Redes intermedio
+(4, 1, 'basico');    -- Carlos García - Hardware básico
+
+-- Agregar campo de especialidad recomendada a tipos de incidencia
+ALTER TABLE TipoIncidencia ADD COLUMN idEspecialidadRecomendada INT NULL;
+ALTER TABLE TipoIncidencia ADD FOREIGN KEY (idEspecialidadRecomendada) REFERENCES EspecialidadTecnico(idEspecialidad);
+
+-- Actualizar tipos de incidencia con especialidades recomendadas
+UPDATE TipoIncidencia SET idEspecialidadRecomendada = 1 WHERE nombre = 'Falla Hardware';
+UPDATE TipoIncidencia SET idEspecialidadRecomendada = 2 WHERE nombre = 'Falla Software';
+UPDATE TipoIncidencia SET idEspecialidadRecomendada = 3 WHERE nombre IN ('Problemas de red', 'Solicitud de Equipo');
+UPDATE TipoIncidencia SET idEspecialidadRecomendada = 4 WHERE nombre = 'Mantenimiento Correctivo';
 -- ==============================================================
 -- INSERCIONES DE EJEMPLO
 -- ==============================================================
@@ -327,4 +453,12 @@ INSERT IGNORE INTO HistorialIncidencia (idIncidencia, idEstadoAnterior, idEstado
 (1, 1, 4, 2, 'Asignado al técnico María López'),
 (2, 1, 4, 2, 'Asignado al técnico Carlos García'),
 (4, 1, 4, 2, 'Asignado al técnico María López por urgencia');
+
+-- Insertar datos de ejemplo para almacén
+INSERT IGNORE INTO Almacen (codigo, nombre, descripcion, categoria, stock_actual, stock_minimo, ubicacion, proveedor, costo_unitario) VALUES 
+('ALM-MEM-001', 'Memoria RAM 8GB DDR4', 'Memoria RAM para computadoras de escritorio', 'hardware', 15, 5, 'Estante A-1', 'Kingston', 45.00),
+('ALM-DIS-001', 'Disco SSD 256GB', 'Disco sólido para laptops y computadoras', 'hardware', 8, 3, 'Estante A-2', 'Samsung', 65.00),
+('ALM-TEC-001', 'Teclado USB', 'Teclado multimedia USB', 'hardware', 20, 10, 'Estante B-1', 'Logitech', 25.00),
+('ALM-CON-001', 'Tóner Impresora HP', 'Tóner para impresoras HP LaserJet', 'consumibles', 12, 5, 'Estante C-1', 'HP', 85.00),
+('ALM-SOF-001', 'Licencia Windows 10 Pro', 'Licencia original Windows 10 Professional', 'software', 5, 2, 'Caja fuerte', 'Microsoft', 150.00);
 

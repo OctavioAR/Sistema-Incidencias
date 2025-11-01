@@ -217,7 +217,7 @@ const guardar = async () => {
   try {
     // Validar campos obligatorios
     if (!formulario.codigo || !formulario.nombre || !formulario.categoria) {
-      alert('❌ Por favor complete todos los campos obligatorios');
+      alert('Por favor complete todos los campos obligatorios');
       return;
     }
 

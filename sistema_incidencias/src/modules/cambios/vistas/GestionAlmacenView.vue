@@ -333,11 +333,11 @@ const itemsFiltrados = computed(() => {
 // Funciones helper
 const getTextoCategoria = (categoria: string) => {
   const categoriaMap: { [key: string]: string } = {
-    'hardware': '🖥️ Hardware',
-    'software': '💾 Software',
-    'consumibles': '🖨️ Consumibles',
-    'herramientas': '🛠️ Herramientas',
-    'repuestos': '🔧 Repuestos'
+    'hardware': 'Hardware',
+    'software': 'Software',
+    'consumibles': 'Consumibles',
+    'herramientas': 'Herramientas',
+    'repuestos': 'Repuestos'
   };
   return categoriaMap[categoria] || categoria;
 };
