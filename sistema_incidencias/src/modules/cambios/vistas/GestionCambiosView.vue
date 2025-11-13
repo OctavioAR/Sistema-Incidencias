@@ -76,6 +76,7 @@
             <th>Título</th>
             <th>Tipo</th>
             <th>Prioridad</th>
+            <th>Tiempo Estimado</th>
             <th>Estado</th>
             <th>Solicitante</th>
             <th>Fecha</th>
@@ -96,6 +97,11 @@
             <td>
               <span class="badge-prioridad" :class="rfc.prioridad">
                 {{ getTextoPrioridad(rfc.prioridad) }}
+              </span>
+            </td>
+            <td>
+              <span class="tiempo-estimado" :class="getClaseTiempo(rfc.tiempo_estimado_minutos)">
+                {{ formatTiempoTabla(rfc.tiempo_estimado_minutos) }}
               </span>
             </td>
             <td>
@@ -158,6 +164,12 @@
                 <label>Prioridad:</label>
                 <span class="badge-prioridad" :class="modalDetalles.rfc.prioridad">
                   {{ getTextoPrioridad(modalDetalles.rfc.prioridad) }}
+                </span>
+              </div>
+              <div class="detalle-item">
+                <label>Tiempo Estimado:</label>
+                <span class="tiempo-estimado" :class="getClaseTiempo(modalDetalles.rfc.tiempo_estimado_minutos)">
+                  {{ formatTiempoTabla(modalDetalles.rfc.tiempo_estimado_minutos) }}
                 </span>
               </div>
               <div class="detalle-item">
@@ -289,6 +301,33 @@ const modalDetalles = ref({
   rfc: null as RFC | null
 });
 
+// Función para formatear tiempo en la tabla
+const formatTiempoTabla = (minutos: number | string | null | undefined): string => {
+  if (minutos === null || minutos === undefined || minutos === '') return '—';
+  const total = typeof minutos === 'string' ? Number(minutos) : minutos;
+  if (!Number.isFinite(total) || total < 0) return '—';
+
+  const dias = Math.floor(total / 1440);
+  const horas = Math.floor((total % 1440) / 60);
+  const mins = total % 60;
+
+  const parts: string[] = [];
+  if (dias) parts.push(`${dias}d`);
+  if (horas) parts.push(`${horas}h`);
+  if (mins || parts.length === 0) parts.push(`${mins}m`);
+  return parts.join(' ');
+};
+
+// Función para asignar clase CSS según el tiempo
+const getClaseTiempo = (minutos: number | undefined): string => {
+  if (!minutos) return 'tiempo-normal';
+  
+  if (minutos <= 30) return 'tiempo-rapido';
+  if (minutos <= 120) return 'tiempo-normal';
+  if (minutos <= 240) return 'tiempo-moderado';
+  return 'tiempo-largo';
+};
+
 // Computed properties
 const esJefeTaller = computed(() => {
   return usuarioActual.value.tipo_usuario_nombre === 'Jefe de Taller';
@@ -391,6 +430,15 @@ const formatFechaHora = (fecha: string | undefined) => {
   }
 };
 
+// Normaliza los items para asegurar que el campo sea numérico
+const itemsRFCNormalizados = computed(() => {
+  return itemsRFC.value.map(i => ({
+    ...i,
+    tiempo_estimado_minutos: typeof (i as any).tiempo_estimado_minutos === 'string'
+      ? Number((i as any).tiempo_estimado_minutos)
+      : (i as any).tiempo_estimado_minutos
+  }));
+});
 // Cargar datos
 const cargarDatos = async () => {
   cargando.value = true;
@@ -541,6 +589,51 @@ onMounted(() => {
 .badge-tipo.estandar {
   background: #f0fdf4;
   color: #166534;
+}
+
+/* Estilos para tiempo estimado */
+.tiempo-estimado {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tiempo-rapido {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.tiempo-normal {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.tiempo-moderado {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tiempo-largo {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.tiempo-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tiempo-input-group .form-input {
+  flex: 1;
+}
+
+.tiempo-unidad {
+  color: #6b7280;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .badge-estado {

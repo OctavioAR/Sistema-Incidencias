@@ -1684,16 +1684,17 @@ app.post('/rfc', requireTecnicoOJefeTaller, async (req, res) => {
       idUsuarioSolicitante,
       idTipoCambio,
       prioridad,
-      estado
+      estado,
+      tiempo_estimado_minutos
     } = req.body;
 
     console.log('Creando RFC con datos:', req.body);
 
     const result = await execute(`
       INSERT INTO RFC 
-      (titulo, descripcion, justificacion, impacto, idUsuarioSolicitante, idTipoCambio, prioridad, estado)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [titulo, descripcion, justificacion, impacto, idUsuarioSolicitante, idTipoCambio, prioridad, estado]);
+      (titulo, descripcion, justificacion, impacto, idUsuarioSolicitante, idTipoCambio, prioridad, estado, tiempo_estimado_minutos)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [titulo, descripcion, justificacion, impacto, idUsuarioSolicitante, idTipoCambio, prioridad, estado, tiempo_estimado_minutos || 60]);
 
     console.log('RFC creado con ID:', result.insertId);
 
@@ -1718,15 +1719,16 @@ app.put('/rfc/:id', requireTecnicoOJefeTaller, async (req, res) => {
       impacto,
       idTipoCambio,
       prioridad,
-      estado
+      estado,
+      tiempo_estimado_minutos
     } = req.body;
 
     await execute(`
       UPDATE RFC 
       SET titulo = ?, descripcion = ?, justificacion = ?, impacto = ?, 
-          idTipoCambio = ?, prioridad = ?, estado = ?
+          idTipoCambio = ?, prioridad = ?, estado = ?, tiempo_estimado_minutos = ? 
       WHERE idRFC = ?
-    `, [titulo, descripcion, justificacion, impacto, idTipoCambio, prioridad, estado, id]);
+    `, [titulo, descripcion, justificacion, impacto, idTipoCambio, prioridad, estado, tiempo_estimado_minutos || 60, id]);
 
     res.json({ message: 'RFC actualizado correctamente' });
   } catch (error) {
@@ -1908,6 +1910,165 @@ app.put('/rfc/:id/items', requireTecnicoOJefeTaller, async (req, res) => {
   } catch (error: any) {
     console.error('Error al actualizar items del RFC:', error.message);
     res.status(500).json({ error: 'Error al actualizar items del RFC: ' + error.message });
+  }
+});
+
+// Detectar problemas potenciales automáticamente
+app.get('/problemas/deteccion-automatica', async (_req, res) => {
+  try {
+    // 1. Buscar incidencias recurrentes (mismo equipo, mismo tipo, último mes)
+    const incidenciasRecurrentes = await query(`
+      SELECT 
+        i.idEquipo,
+        e.nombre as equipo_nombre,
+        t.nombre as tipo_incidencia,
+        COUNT(*) as total_incidencias,
+        GROUP_CONCAT(i.idIncidencia) as ids_incidencias
+      FROM Incidencia i
+      JOIN Equipo e ON i.idEquipo = e.idEquipo
+      JOIN TipoIncidencia t ON i.idTipoIncidencia = t.idTipoIncidencia
+      WHERE i.fecha_creacion >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        AND i.idEquipo IS NOT NULL
+      GROUP BY i.idEquipo, i.idTipoIncidencia
+      HAVING COUNT(*) >= 3
+      ORDER BY total_incidencias DESC
+    `);
+
+    // 2. Buscar patrones por tipo de incidencia
+    const patronesTipo = await query(`
+      SELECT 
+        i.idTipoIncidencia,
+        t.nombre as tipo_incidencia,
+        COUNT(*) as total_incidencias,
+        GROUP_CONCAT(DISTINCT i.idEquipo) as equipos_afectados
+      FROM Incidencia i
+      JOIN TipoIncidencia t ON i.idTipoIncidencia = t.idTipoIncidencia
+      WHERE i.fecha_creacion >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY i.idTipoIncidencia
+      HAVING COUNT(*) >= 5
+      ORDER BY total_incidencias DESC
+    `);
+
+    res.json({
+      incidenciasRecurrentes,
+      patronesTipo,
+      message: 'Detección automática completada'
+    });
+  } catch (error) {
+    console.error('Error en detección automática:', error);
+    res.status(500).json({ error: 'Error en detección automática' });
+  }
+});
+
+// Obtener estados de problema
+app.get('/problemas/estados', async (_req, res) => {
+  try {
+    const estados = await query('SELECT * FROM EstadoProblema ORDER BY idEstadoProblema');
+    res.json(estados);
+  } catch (error) {
+    console.error('Error al obtener estados de problema:', error);
+    res.status(500).json({ error: 'Error al obtener estados de problema' });
+  }
+});
+
+// Obtener categorías de problema
+app.get('/problemas/categorias', async (_req, res) => {
+  try {
+    const categorias = await query('SELECT * FROM CategoriaProblema ORDER BY nombre');
+    res.json(categorias);
+  } catch (error) {
+    console.error('Error al obtener categorías de problema:', error);
+    res.status(500).json({ error: 'Error al obtener categorías de problema' });
+  }
+});
+
+// Obtener todos los problemas
+app.get('/problemas', async (_req, res) => {
+  try {
+    const problemas = await query(`
+      SELECT p.*, 
+             ep.nombre as estado_nombre,
+             cp.nombre as categoria_nombre,
+             CONCAT(ur.nombre, ' ', ur.apellidoPat) as usuario_reporta_nombre,
+             CONCAT(ut.nombre, ' ', ut.apellidoPat) as tecnico_asignado_nombre,
+             (SELECT COUNT(*) FROM ProblemaIncidencia pi WHERE pi.idProblema = p.idProblema) as total_incidencias
+      FROM Problema p
+      LEFT JOIN EstadoProblema ep ON p.idEstadoProblema = ep.idEstadoProblema
+      LEFT JOIN CategoriaProblema cp ON p.idCategoriaProblema = cp.idCategoriaProblema
+      LEFT JOIN Usuario ur ON p.idUsuarioReporta = ur.idUsuario
+      LEFT JOIN Usuario ut ON p.idTecnicoAsignado = ut.idUsuario
+      ORDER BY p.fecha_reporte DESC
+    `);
+    res.json(problemas);
+  } catch (error) {
+    console.error('Error al obtener problemas:', error);
+    res.status(500).json({ error: 'Error al obtener problemas' });
+  }
+});
+
+// Crear nuevo problema
+app.post('/problemas', async (req, res) => {
+  try {
+    const {
+      titulo, descripcion, causa_raiz, solucion_permanente, idEstadoProblema,
+      idUsuarioReporta, idTecnicoAsignado, idCategoriaProblema, prioridad,
+      impacto, fecha_vencimiento
+    } = req.body;
+
+    const result = await execute(`
+      INSERT INTO Problema 
+      (titulo, descripcion, causa_raiz, solucion_permanente, idEstadoProblema,
+       idUsuarioReporta, idTecnicoAsignado, idCategoriaProblema, prioridad,
+       impacto, fecha_vencimiento)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      titulo, descripcion, causa_raiz || null, solucion_permanente || null, idEstadoProblema,
+      idUsuarioReporta, idTecnicoAsignado || null, idCategoriaProblema || null, prioridad,
+      impacto || null, fecha_vencimiento || null
+    ]);
+
+    res.status(201).json({ 
+      message: 'Problema creado correctamente', 
+      id: result.insertId 
+    });
+  } catch (error) {
+    console.error('Error al crear problema:', error);
+    res.status(500).json({ error: 'Error al crear problema' });
+  }
+});
+
+// Buscar incidencias para vincular
+app.get('/incidencias', async (req, res) => {
+  try {
+    const { busqueda } = req.query;
+    
+    let queryStr = `
+      SELECT i.*, 
+             e.nombre as equipo_nombre,
+             t.nombre as tipo_incidencia_nombre,
+             es.nombre as estado_nombre
+      FROM Incidencia i
+      LEFT JOIN Equipo e ON i.idEquipo = e.idEquipo
+      LEFT JOIN TipoIncidencia t ON i.idTipoIncidencia = t.idTipoIncidencia
+      LEFT JOIN EstadoIncidencia es ON i.idEstadoIncidencia = es.idEstadoIncidencia
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (busqueda) {
+      queryStr += ` AND (i.titulo LIKE ? OR i.descripcion LIKE ? OR e.nombre LIKE ?)`;
+      const searchTerm = `%${busqueda}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+    
+    queryStr += ` ORDER BY i.fecha_creacion DESC LIMIT 20`;
+    
+    const incidencias = await query(queryStr, params);
+    res.json(incidencias);
+  } catch (error) {
+    console.error('Error al buscar incidencias:', error);
+    res.status(500).json({ error: 'Error al buscar incidencias' });
   }
 });
 

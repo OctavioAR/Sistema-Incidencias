@@ -11,6 +11,7 @@ export interface RFC {
   idTipoCambio: 'emergencia' | 'normal' | 'estandar';
   prioridad: 'baja' | 'media' | 'alta' | 'critica';
   estado: 'borrador' | 'pendiente_aprobacion' | 'aprobado' | 'rechazado' | 'en_progreso' | 'completado' | 'cancelado';
+  tiempo_estimado_minutos?: number;
   fecha_solicitud?: string;
   fecha_aprobacion?: string;
   fecha_implementacion?: string;

@@ -49,6 +49,13 @@
         style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
         Cambios
       </router-link>
+
+      <router-link 
+        v-if="mostrarProblemas"
+        to="/problemas" 
+        style="margin-right: 1rem; text-decoration: none; color: #FFFFFF;">
+        Problemas
+      </router-link>
       
       <div v-if="usuario" style="float: right;">
         <span style="margin-right: 1rem;">
@@ -110,6 +117,12 @@ const mostrarCambios = computed(() => {
   const tipoUsuario = usuario.value?.tipo_usuario_nombre;
   // Solo Jefe de Departamento puede ver cambios
   return tipoUsuario === 'Jefe de Taller' || tipoUsuario === 'Técnico';
+})
+
+const mostrarProblemas = computed(() => {
+  const tipoUsuario = usuario.value?.tipo_usuario_nombre;
+  // Solo Jefe de Departamento y Técnicos pueden ver problemas
+  return tipoUsuario === 'Jefe de Departamento' || tipoUsuario === 'Técnico' || tipoUsuario === 'Jefe de Taller';
 })
 
 const cargarUsuario = () => {

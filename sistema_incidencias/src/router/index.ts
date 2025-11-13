@@ -3,6 +3,7 @@ import authRoutes from '../modules/auth/router';
 import configuracionRoutes from '../modules/configuracion/router';
 import incidenciasRoutes from '../modules/incidencias/router';
 import cambiosRoutes from '../modules/cambios/router';
+import problemasRoutes from '../modules/problemas/router';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -17,6 +18,7 @@ const router = createRouter({
     ...configuracionRoutes,
       ...incidenciasRoutes,
       ...cambiosRoutes,
+      ...problemasRoutes,
     {
       path: '/jefe/dashboard',
       name: 'JefeDashboard',

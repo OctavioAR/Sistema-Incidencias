@@ -231,6 +231,7 @@ CREATE TABLE RFC (
     fecha_cierre TIMESTAMP NULL,
     idUsuarioAprobador INT NULL,
     comentarios_aprobacion TEXT,
+    tiempo_estimado_minutos INT DEFAULT 60,
     FOREIGN KEY (idUsuarioSolicitante) REFERENCES Usuario(idUsuario),
     FOREIGN KEY (idUsuarioAprobador) REFERENCES Usuario(idUsuario)
 );
@@ -295,6 +296,66 @@ CREATE TABLE TecnicoEspecialidad (
     nivel_expertise ENUM('basico', 'intermedio', 'avanzado') DEFAULT 'intermedio',
     FOREIGN KEY (idUsuario) REFERENCES Usuario(idUsuario) ON DELETE CASCADE,
     FOREIGN KEY (idEspecialidad) REFERENCES EspecialidadTecnico(idEspecialidad) ON DELETE CASCADE
+);
+
+CREATE TABLE Problema (
+    idProblema INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(255) NOT NULL,
+    descripcion TEXT NOT NULL,
+    causa_raiz TEXT,
+    solucion_permanente TEXT,
+    idEstadoProblema INT DEFAULT 1,
+    idUsuarioReporta INT,
+    idTecnicoAsignado INT NULL,
+    idCategoriaProblema INT,
+    prioridad ENUM('baja', 'media', 'alta', 'critica') DEFAULT 'media',
+    fecha_reporte TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_cierre TIMESTAMP NULL,
+    fecha_vencimiento DATE NULL,
+    impacto TEXT,
+    comentarios_cierre TEXT,
+    FOREIGN KEY (idUsuarioReporta) REFERENCES Usuario(idUsuario),
+    FOREIGN KEY (idTecnicoAsignado) REFERENCES Usuario(idUsuario) ON DELETE SET NULL
+);
+
+-- Estados de Problema
+CREATE TABLE EstadoProblema (
+    idEstadoProblema INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE,
+    descripcion VARCHAR(255)
+);
+
+-- Categorías de Problemas
+CREATE TABLE CategoriaProblema (
+    idCategoriaProblema INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    descripcion VARCHAR(255)
+);
+
+-- Relación entre Problemas e Incidencias (un problema puede tener múltiples incidencias)
+CREATE TABLE ProblemaIncidencia (
+    idProblemaIncidencia INT AUTO_INCREMENT PRIMARY KEY,
+    idProblema INT,
+    idIncidencia INT,
+    fecha_vinculacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    comentarios TEXT,
+    FOREIGN KEY (idProblema) REFERENCES Problema(idProblema) ON DELETE CASCADE,
+    FOREIGN KEY (idIncidencia) REFERENCES Incidencia(idIncidencia) ON DELETE CASCADE
+);
+
+-- Historial de Problemas
+CREATE TABLE HistorialProblema (
+    idHistorialProblema INT AUTO_INCREMENT PRIMARY KEY,
+    idProblema INT,
+    idEstadoAnterior INT,
+    idEstadoNuevo INT,
+    idUsuarioCambio INT,
+    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    comentario TEXT,
+    FOREIGN KEY (idProblema) REFERENCES Problema(idProblema) ON DELETE CASCADE,
+    FOREIGN KEY (idEstadoAnterior) REFERENCES EstadoProblema(idEstadoProblema),
+    FOREIGN KEY (idEstadoNuevo) REFERENCES EstadoProblema(idEstadoProblema),
+    FOREIGN KEY (idUsuarioCambio) REFERENCES Usuario(idUsuario)
 );
 
 -- Insertar especialidades
@@ -462,3 +523,26 @@ INSERT IGNORE INTO Almacen (codigo, nombre, descripcion, categoria, stock_actual
 ('ALM-CON-001', 'Tóner Impresora HP', 'Tóner para impresoras HP LaserJet', 'consumibles', 12, 5, 'Estante C-1', 'HP', 85.00),
 ('ALM-SOF-001', 'Licencia Windows 10 Pro', 'Licencia original Windows 10 Professional', 'software', 5, 2, 'Caja fuerte', 'Microsoft', 150.00);
 
+-- Insertar estados de problemas
+INSERT IGNORE INTO EstadoProblema (nombre, descripcion) VALUES 
+('Nuevo', 'Problema reportado, pendiente de análisis'),
+('Investigación', 'En proceso de identificar causa raíz'),
+('Solución Propuesta', 'Se ha identificado una solución potencial'),
+('En Implementación', 'Aplicando solución permanente'),
+('Resuelto', 'Problema solucionado permanentemente'),
+('Cerrado', 'Problema completamente finalizado');
+
+-- Insertar categorías de problemas
+INSERT IGNORE INTO CategoriaProblema (nombre, descripcion) VALUES 
+('Hardware Recurrente', 'Fallas repetitivas en componentes físicos'),
+('Software Recurrente', 'Problemas constantes con aplicaciones o SO'),
+('Problemas de Red', 'Incidencia repetitiva en conectividad'),
+('Rendimiento', 'Bajo desempeño recurrente en equipos'),
+('Procesos', 'Deficiencias en procedimientos o flujos de trabajo');
+
+-- Ejemplo de problema real
+INSERT IGNORE INTO Problema (titulo, descripcion, idEstadoProblema, idUsuarioReporta, idCategoriaProblema, prioridad, impacto) VALUES 
+('Lentitud recurrente en Laboratorio LP', 
+ 'Las computadoras del laboratorio de programación se vuelven lentas recurrentemente cada 2-3 semanas, afectando a múltiples equipos. Ya se han reportado 5 incidencias similares en el último mes.',
+ 2, 2, 4, 'alta',
+ 'Afecta a 25 computadoras, impacta clases de programación, pérdida de tiempo de estudiantes');

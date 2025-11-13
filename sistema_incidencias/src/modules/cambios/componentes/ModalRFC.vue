@@ -38,6 +38,27 @@
                 <option value="estandar">Estándar</option>
               </select>
             </div>
+
+            <div class="form-group">
+              <label for="tiempo_estimado">Tiempo Estimado *</label>
+              <div class="tiempo-input-group">
+                <input 
+                  id="tiempo_estimado"
+                  v-model.number="formulario.tiempo_estimado_minutos" 
+                  type="number" 
+                  required
+                  min="15"
+                  max="480"
+                  placeholder="Minutos"
+                  class="form-input"
+                >
+                <span class="tiempo-unidad">minutos</span>
+              </div>
+              <small>
+                {{ formatTiempoEstimado(formulario.tiempo_estimado_minutos) }}
+                • Mínimo: 15 min • Máximo: 8 horas
+              </small>
+            </div>
             
             <div class="form-group">
               <label for="prioridad">Prioridad *</label>
@@ -206,6 +227,7 @@ const formulario = ref({
   impacto: '',
   idTipoCambio: '' as 'emergencia' | 'normal' | 'estandar',
   prioridad: 'media' as 'baja' | 'media' | 'alta' | 'critica',
+  tiempo_estimado_minutos: 60,
   items: [
     {
       tipo_item: '' as 'hardware' | 'software' | 'consumible' | 'herramienta' | 'repuesto',
@@ -222,6 +244,8 @@ const formularioValido = computed(() => {
          formulario.value.descripcion.trim() &&
          formulario.value.justificacion.trim() &&
          formulario.value.idTipoCambio &&
+         formulario.value.tiempo_estimado_minutos >= 15 &&
+         formulario.value.tiempo_estimado_minutos <= 480 &&
          formulario.value.items.length > 0 &&
          formulario.value.items.every(item => 
            item.tipo_item && item.id_item.trim() && item.descripcion_cambio.trim()
@@ -238,6 +262,22 @@ watch([() => props.mostrar, () => props.rfc], () => {
   }
 });
 
+// Función para formatear el tiempo en horas y minutos
+const formatTiempoEstimado = (minutos: number): string => {
+  if (!minutos || minutos < 60) {
+    return `${minutos} min`;
+  }
+  
+  const horas = Math.floor(minutos / 60);
+  const minsRestantes = minutos % 60;
+  
+  if (minsRestantes === 0) {
+    return `${horas} hora${horas > 1 ? 's' : ''}`;
+  }
+  
+  return `${horas}h ${minsRestantes}min`;
+};
+
 const llenarFormularioEdicion = async () => {
   if (!props.rfc) return;
   
@@ -250,8 +290,6 @@ const llenarFormularioEdicion = async () => {
         tipo_item: item.tipo_item,
         id_item: item.id_item.toString(),
         descripcion_cambio: item.descripcion_cambio,
-        estado_anterior: item.estado_anterior || null,
-        estado_nuevo: item.estado_nuevo || null
       }));
     } catch (error) {
       console.error('Error al cargar items RFC:', error);
@@ -259,8 +297,6 @@ const llenarFormularioEdicion = async () => {
         tipo_item: '' as any,
         id_item: '',
         descripcion_cambio: '',
-        estado_anterior: null,
-        estado_nuevo: null
       }];
     }
   }
@@ -272,12 +308,11 @@ const llenarFormularioEdicion = async () => {
     impacto: props.rfc.impacto || '',
     idTipoCambio: props.rfc.idTipoCambio,
     prioridad: props.rfc.prioridad,
+    tiempo_estimado_minutos: props.rfc.tiempo_estimado_minutos || 60, // Cargar tiempo
     items: items.length > 0 ? items : [{
       tipo_item: '' as any,
       id_item: '',
       descripcion_cambio: '',
-      estado_anterior: null,
-      estado_nuevo: null
     }]
   };
 };
@@ -290,6 +325,7 @@ const resetearFormulario = () => {
     impacto: '',
     idTipoCambio: '' as 'emergencia' | 'normal' | 'estandar',
     prioridad: 'media',
+    tiempo_estimado_minutos: 60,
     items: [
       {
         tipo_item: '' as 'hardware' | 'software' | 'consumible' | 'herramienta' | 'repuesto',
@@ -339,7 +375,8 @@ const guardar = async () => {
       idTipoCambio: formulario.value.idTipoCambio,
       prioridad: formulario.value.prioridad,
       estado: 'borrador' as const, // Especificar el tipo literal
-      idUsuarioSolicitante: usuario.idUsuario
+      idUsuarioSolicitante: usuario.idUsuario,
+      tiempo_estimado_minutos: formulario.value.tiempo_estimado_minutos
     };
 
     console.log('Enviando RFC:', datosRFC);
